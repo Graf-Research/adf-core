@@ -1,0 +1,33 @@
+{
+  "name": "@graf-research/adf-core",
+  "version": "0.0.15",
+  "main": "dist/index.js",
+  "scripts": {
+    "copy-resources-js": "mkdir ./dist/ast/grammar && cp ./ast/grammar/*.js ./dist/ast/grammar",
+    "compile-grammar": "nearleyc ./ast/grammar/adf-lang.ne -o ./ast/grammar/adf-lang.js",
+    "test": "npm run build && node dist/test.js",
+    "build": "rm -rf dist && tsc && npm run compile-grammar && npm run copy-resources-js"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/axios": "^0.9.36",
+    "@types/lodash": "^4.17.13",
+    "@types/moo": "^0.5.9",
+    "@types/nearley": "^2.11.5",
+    "@types/node": "^22.8.5",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "lodash": "^4.17.21",
+    "moo": "^0.5.2",
+    "nearley": "^2.20.1"
+  }
+}

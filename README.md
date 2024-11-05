@@ -13,13 +13,22 @@
 
 DSL (Domain Specific Language) ADF didesain untuk mendokumentasikan sistem/program dan men-generate kode sesuai spesifikasi ADF. Kode ADF mendokumentasikan desain model data dan mekanisme komunikasi antar program dalam sebuah sistem. Lihat [Spesifikasi Bahasa ADF](https://adf-lang.com/docs/syntax) untuk panduan menulis desain ADF.
 
+**Generator Kode**
+
+Spesifikasi ADF memiliki informasi minimal untuk desain sebuah sistem berbasis data. Informasi pada ADF dapat digunakan untuk men-generate kode program langsung/template kode program. Generator kode yang ada saat ini:
+
+- [adf-codegen-api-nodejs](https://github.com/Graf-Research/adf-codegen-api-nodejs) Template Backend REST API dengan ExpressJS+TypeORM
+- [adf-codegen-schema-typescript](https://github.com/Graf-Research/adf-codegen-schema-typescript) Schema data dalam bentuk interface Typescript
+- [adf-codegen-model-typescript](https://github.com/Graf-Research/adf-codegen-model-typescript) Model data dalam bentuk interface Typescript
+- [adf-codegen-model-typeorm](https://github.com/Graf-Research/adf-codegen-model-typeorm) Model data dalam bentuk kelas [TypeORM](https://github.com/typeorm/typeorm)
+
 ## Library
 
 ```bash
 npm install --save @graf-research/adf-core
 ```
 
-### Fungsi Utama
+### Fungsi
 
 #### parse(uri: string)
 

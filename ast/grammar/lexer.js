@@ -1,4 +1,5 @@
 module.exports = {
+  comment              : /\ *\/\/.*/,
   flow_comments        : { match: /(?<=\d+ +conditional |\d+ +input |\d+ +terminal |\d+ +process |\d+ +output |\d+ +api\-crud +[\w\/\:\-]+|\d+ +api +\w+ +[\w\/\:\-]+).+(?! \{)/, lineBreaks: false },
   whitespace           : /[ \t]+/,
   number               : /\-?[0-9]+/,

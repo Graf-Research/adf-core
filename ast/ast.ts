@@ -15,7 +15,12 @@ export function ast(code: string): AST_Item[] {
   // const lexer = moo.compile(require('../ast/grammar/lexer.js'));
   // console.log(Array.from(lexer.reset(code)).map(x => `${x.type} => ${x.text.trim()}`));
 
-  parser.feed(code);
+  parser.feed(code.split('\n').map(x => {
+    if (x.trim().startsWith('//')) {
+      return '';
+    }
+    return x;
+  }).join('\n'));
   if (parser.results.length > 1) {
     throw new Error(`Syntax ambiguity`);
   }

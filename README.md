@@ -22,6 +22,13 @@ Spesifikasi ADF memiliki informasi minimal untuk desain sebuah sistem berbasis d
 - [adf-codegen-model-typescript](https://github.com/Graf-Research/adf-codegen-model-typescript) Model data dalam bentuk interface Typescript
 - [adf-codegen-model-typeorm](https://github.com/Graf-Research/adf-codegen-model-typeorm) Model data dalam bentuk kelas [TypeORM](https://github.com/typeorm/typeorm)
 
+**Todo List Generator Kode**:
+1. Generator API Tester (seperti Swagger, Postman, Apiary, dll).
+2. HTTP Client secara umum untuk segala jenis framework frontend web.
+3. React `useAPI` HTTP Client, mirip poin nomor 2, namun untuk framework react dengan fitur hook.
+4. HTTP Client untuk bahasa pemrograman lain, kasus pemakaiannya untuk koneksi host-to-host.
+5. dll
+
 ## Library
 
 ```bash

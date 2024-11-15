@@ -10,6 +10,10 @@ import { API } from './semantic-analysis/api/api';
 import { Model } from './semantic-analysis/model/model';
 import { Import } from './semantic-analysis/import/import';
 import { AnalysisConfig } from "./semantic-analysis/sem-analysis.interface";
+import { enumToADF, modelToADF, tableToADF } from "./to-adf/model-to-adf";
+import { flowToADF } from "./to-adf/flow-to-adf";
+import { schemaToADF } from "./to-adf/schema-to-adf";
+import { apiToADF } from "./to-adf/api-to-adf";
 
 export {
   Import,
@@ -48,4 +52,14 @@ export async function parse(uri: string, relative_path: string = '', current_res
 
 export async function parseString(code: string, current_result?: SAResult, config?: AnalysisConfig): Promise<SAResult> {
   return await analyze(ast(code), '', current_result, config);
+}
+
+export function JSONSpecificationToADF(result: SAResult): string {
+  return [
+    enumToADF(result.list_enum),
+    tableToADF(result.list_table),
+    flowToADF(result.list_flow),
+    schemaToADF(result.list_schema),
+    apiToADF(result.list_api)
+  ].join('\n');
 }

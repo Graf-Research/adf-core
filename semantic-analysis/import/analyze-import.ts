@@ -1,7 +1,8 @@
 import { parse, SAResult } from "../../index"
 import { AST_Import } from "../../ast/types/import"
+import { AnalysisConfig } from "../sem-analysis.interface";
 
-export async function analyzeImport(list_ast_import: AST_Import.Import[], relative_path: string, current_result?: SAResult): Promise<SAResult> {
+export async function analyzeImport(list_ast_import: AST_Import.Import[], relative_path: string, current_result?: SAResult, config?: AnalysisConfig): Promise<SAResult> {
   let temporary_sa_result: SAResult = {
     list_enum: current_result ? [...current_result.list_enum] : [],
     list_table: current_result ? [...current_result.list_table] : [],
@@ -12,7 +13,7 @@ export async function analyzeImport(list_ast_import: AST_Import.Import[], relati
 
   for (const ast_import of list_ast_import) {
     const source = ast_import.source.text.slice(1, -1); // remove quotes
-    temporary_sa_result = await parse(source, relative_path, temporary_sa_result);
+    temporary_sa_result = await parse(source, relative_path, temporary_sa_result, config);
   }
 
   return temporary_sa_result;

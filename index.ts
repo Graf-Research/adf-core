@@ -9,6 +9,7 @@ import { Flow } from './semantic-analysis/flow/flow';
 import { API } from './semantic-analysis/api/api';
 import { Model } from './semantic-analysis/model/model';
 import { Import } from './semantic-analysis/import/import';
+import { AnalysisConfig } from "./semantic-analysis/sem-analysis.interface";
 
 export {
   Import,
@@ -19,7 +20,7 @@ export {
   SAResult
 }
 
-export async function parse(uri: string, relative_path: string = '', current_result?: SAResult): Promise<SAResult> {
+export async function parse(uri: string, relative_path: string = '', current_result?: SAResult, config?: AnalysisConfig): Promise<SAResult> {
   const url_regex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/;
   
   if (url_regex.test(uri)) {
@@ -38,13 +39,13 @@ export async function parse(uri: string, relative_path: string = '', current_res
       console.log(`file '${absolute_path}'`)
       const readFromFile = (f: string): Promise<string> => new Promise((resolve, reject) => fs.readFile(f, 'utf-8', (err, data: string) => { if (err) reject(err); else resolve(data)}));
       const code = await readFromFile(absolute_path);
-      return await analyze(ast(code), path.dirname(absolute_path), current_result);
+      return await analyze(ast(code), path.dirname(absolute_path), current_result, config);
     } catch (err: any) {
       throw new Error(`from file: '${absolute_path}'\n${err.toString()}`);
     }
   }
 }
 
-export async function parseString(code: string, current_result?: SAResult): Promise<SAResult> {
-  return await analyze(ast(code), '', current_result);
+export async function parseString(code: string, current_result?: SAResult, config?: AnalysisConfig): Promise<SAResult> {
+  return await analyze(ast(code), '', current_result, config);
 }

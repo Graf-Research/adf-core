@@ -36,13 +36,8 @@ export async function analyze(list_ast: AST_Item[], relative_path: string, curre
   return {
     list_enum: result_enum_table.list_enum,
     list_table: result_enum_table.list_table,
-    list_flow: [
-      ...result_flow,
-    ],
-    list_schema: [
-      ...result_schema,
-      ...result_api.list_schema,
-    ],
+    list_flow: result_flow,
+    list_schema: result_api.list_schema,
     list_api: result_api.list_api
   };
 }

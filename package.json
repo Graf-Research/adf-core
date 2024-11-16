@@ -1,6 +1,6 @@
 {
   "name": "@graf-research/adf-core",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "main": "dist/index.js",
   "scripts": {
     "copy-resources-js": "mkdir ./dist/ast/grammar && cp ./ast/grammar/*.js ./dist/ast/grammar",

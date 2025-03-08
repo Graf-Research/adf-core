@@ -40,6 +40,7 @@ export namespace API {
     queries?: Query[]
     error_type?: ErrorType
     return: ReturnType
+    filename?: string
   }
 
   export interface ReturnType {

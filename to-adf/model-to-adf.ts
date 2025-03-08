@@ -43,7 +43,7 @@ export function tableToADF(list_table: Model.Table[]): string {
 export function enumToADF(list_enum: Model.Enum[]): string {
   return list_enum.map((e: Model.Enum) => [
     `enum ${e.name} {`,
-    e.items.map(item => `  ${item}`),
+    e.items.map(item => `  ${item}`).join('\n'),
     `}`
   ].join('\n')).join('\n');
 }

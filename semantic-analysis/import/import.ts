@@ -5,5 +5,6 @@ export namespace Import {
     type: 'import'
     source: string
     result: SAResult
+    filename?: string
   }
 }

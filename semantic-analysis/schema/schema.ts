@@ -27,5 +27,6 @@ export namespace Schema {
     type: 'schema'
     name: string
     items: Item[]
+    filename?: string
   }
 }

@@ -1,16 +1,23 @@
 import { AST_Flow } from "../../ast/types/flow";
 import { Flow } from "./flow";
 
-export function analyzeFlow(list_ast_flow: AST_Flow.Flow[]): Flow.Flow[] {
+
+export interface AnalyzeFlowParams {
+  list_ast_flow: AST_Flow.Flow[]
+  filename?: string
+}
+
+export function analyzeFlow(param: AnalyzeFlowParams): Flow.Flow[] {
   const list_flow: Flow.Flow[] = [];
 
-  for (const ast_flow of list_ast_flow) {
+  for (const ast_flow of param.list_ast_flow) {
     // TODO: check flow name duplicate
     const flow: Flow.Flow = {
       extends: ast_flow.extends,
       type: 'flow',
       name: ast_flow.name.text,
-      items: []
+      items: [],
+      filename: param.filename
     };
 
     for (const item of ast_flow.items) {
@@ -39,7 +46,7 @@ export function analyzeFlow(list_ast_flow: AST_Flow.Flow[]): Flow.Flow[] {
           break;
         case "api":
           if (!['get', 'post', 'put', 'patch', 'delete'].includes(item.method.text.toLowerCase())) {
-            throw new Error(`Error line ${item.method.line} col ${item.method.col} api method '${item.method.text}' is not supported`);
+            throw new Error(`line ${item.method.line} col ${item.method.col} api method '${item.method.text}' is not supported`);
           }
           flow.items.push({
             id: +item.id.text,

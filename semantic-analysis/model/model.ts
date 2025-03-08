@@ -4,6 +4,7 @@ export namespace Model {
     name: string
     type: 'enum'
     items: string[]
+    filename?: string
   }
 
   export namespace CommonSQLType {
@@ -110,6 +111,7 @@ export namespace Model {
     type: 'table'
     name: string
     columns: TableColumn[]
+    filename?: string
   }
 
   export type Item = Table | Enum;

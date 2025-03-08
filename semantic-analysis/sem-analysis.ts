@@ -16,28 +16,65 @@ export interface SAResult {
   list_flow: Flow.Flow[]
   list_schema: Schema.Schema[]
   list_api: API.API[]
+  filename?: string
 }
 
-export async function analyze(list_ast: AST_Item[], relative_path: string, current_result?: SAResult, config?: AnalysisConfig): Promise<SAResult> {
-  const list_ast_enum = list_ast.filter(e => e.type === 'enum');
-  const list_ast_table = list_ast.filter(e => e.type === 'table');
-  const list_ast_flow = list_ast.filter(e => e.type === 'flow');
-  const list_ast_schema = list_ast.filter(e => e.type === 'schema');
-  const list_ast_api = list_ast.filter(e => e.type === 'api');
-  const list_ast_import = list_ast.filter(e => e.type === 'import');
+export interface AnalyzeParams {
+  list_ast: AST_Item[]
+  relative_path: string
+  current_result?: SAResult
+  config?: AnalysisConfig
+  filename?: string
+}
 
-  const result_import = await analyzeImport(list_ast_import, relative_path, current_result, config);
+export async function analyze(param: AnalyzeParams): Promise<SAResult> {
+  const list_ast_enum = param.list_ast.filter(e => e.type === 'enum');
+  const list_ast_table = param.list_ast.filter(e => e.type === 'table');
+  const list_ast_flow = param.list_ast.filter(e => e.type === 'flow');
+  const list_ast_schema = param.list_ast.filter(e => e.type === 'schema');
+  const list_ast_api = param.list_ast.filter(e => e.type === 'api');
+  const list_ast_import = param.list_ast.filter(e => e.type === 'import');
 
-  const result_enum_table = analyzeModel(list_ast_enum, list_ast_table, result_import.list_enum, result_import.list_table, config?.model);
-  const result_flow = analyzeFlow(list_ast_flow);
-  const result_schema = analyzeSchema(list_ast_schema, list_ast_table, list_ast_enum, result_import.list_schema);
-  const result_api = analyzeAPI(list_ast_api, result_schema, result_import.list_api);
+  const result_import = await analyzeImport({
+    list_ast_import, 
+    relative_path: param.relative_path, 
+    current_result: param.current_result, 
+    config: param.config,
+    filename: param.filename
+  });
+
+  const result_enum_table = analyzeModel({
+    list_ast_enum, 
+    list_ast_table, 
+    list_existing_enum: result_import.list_enum, 
+    list_existing_table: result_import.list_table, 
+    config: param.config?.model,
+    filename: param.filename
+  });
+  const result_flow = analyzeFlow({
+    list_ast_flow,
+    filename: param.filename
+  });
+  const result_schema = analyzeSchema({
+    list_ast_schema, 
+    list_ast_table, 
+    list_ast_enum, 
+    list_existing_schema: result_import.list_schema,
+    filename: param.filename
+  });
+  const result_api = analyzeAPI({
+    list_ast_api, 
+    list_existing_schema: result_schema, 
+    list_existing_api: result_import.list_api,
+    filename: param.filename
+  });
 
   return {
     list_enum: result_enum_table.list_enum,
     list_table: result_enum_table.list_table,
     list_flow: result_flow,
     list_schema: result_api.list_schema,
-    list_api: result_api.list_api
+    list_api: result_api.list_api,
+    filename: param.filename
   };
 }

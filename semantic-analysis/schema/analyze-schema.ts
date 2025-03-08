@@ -2,15 +2,23 @@ import { AST_Model } from "../../ast/types/model";
 import { AST_Schema } from "../../ast/types/schema";
 import { Schema } from "./schema";
 
-export function analyzeSchema(list_ast_schema: AST_Schema.Schema[], list_ast_table: AST_Model.Table[], list_ast_enum: AST_Model.Enum[], list_existing_schema: Schema.Schema[]): Schema.Schema[] {
-  const list_schema: Schema.Schema[] = list_existing_schema;
+export interface AnalyzeSchemaParams {
+  list_ast_schema: AST_Schema.Schema[]
+  list_ast_table: AST_Model.Table[]
+  list_ast_enum: AST_Model.Enum[]
+  list_existing_schema: Schema.Schema[]
+  filename?: string
+}
 
-  for (const ast_schema of list_ast_schema) {
+export function analyzeSchema(param: AnalyzeSchemaParams): Schema.Schema[] {
+  const list_schema: Schema.Schema[] = param.list_existing_schema;
+
+  for (const ast_schema of param.list_ast_schema) {
     if (ast_schema.name.text.includes('-')) {
-      throw new Error(`Error line ${ast_schema.name.line} col ${ast_schema.name.col + ast_schema.name.text.indexOf('-')}: schema name '${ast_schema.name.text}' contains illegal character '-'`);
+      throw new Error(`line ${ast_schema.name.line} col ${ast_schema.name.col + ast_schema.name.text.indexOf('-')}: schema name '${ast_schema.name.text}' contains illegal character '-'`);
     }
     
-    const create_schema_from_ast_result: CreateSchemaFromASTResult = createSchemaFromAST(ast_schema, list_ast_schema, list_schema);
+    const create_schema_from_ast_result: CreateSchemaFromASTResult = createSchemaFromAST(ast_schema, param.list_ast_schema, list_schema, param.filename);
     for (const i of Object.keys(create_schema_from_ast_result.updated_schema)) {
       list_schema[+i] = create_schema_from_ast_result.updated_schema[+i];
     }
@@ -25,14 +33,14 @@ interface CreateSchemaFromASTResult {
   updated_schema: {[key: number]: Schema.Schema}
 }
 
-function createSchemaFromAST(ast_schema: AST_Schema.Schema, list_ast_schema: AST_Schema.Schema[], list_existing_schema: Schema.Schema[]): CreateSchemaFromASTResult {
+function createSchemaFromAST(ast_schema: AST_Schema.Schema, list_ast_schema: AST_Schema.Schema[], list_existing_schema: Schema.Schema[], filename?: string): CreateSchemaFromASTResult {
   // TODO: check schema name duplicate
 
   const schema_items_result: SchemaItemsResult = getSchemaItems(ast_schema.items, list_ast_schema, list_existing_schema);
   const existing_schema_index: number = list_existing_schema.findIndex((s: Schema.Schema) => s.name === ast_schema.name.text);
   if (ast_schema.extends) {
     if (existing_schema_index === -1) {
-      throw new Error(`Error line ${ast_schema.name.line} col ${ast_schema.name.col + ast_schema.name.text.indexOf('-')}: extended schema '${ast_schema.name.text}' doesnt find existing schema`);
+      throw new Error(`line ${ast_schema.name.line} col ${ast_schema.name.col + ast_schema.name.text.indexOf('-')}: extended schema '${ast_schema.name.text}' doesnt find existing schema`);
     }
     const updated_schema: Schema.Schema = { ...list_existing_schema[existing_schema_index] };
     updated_schema.extends = true;
@@ -52,13 +60,15 @@ function createSchemaFromAST(ast_schema: AST_Schema.Schema, list_ast_schema: AST
     };
   } else {
     if (existing_schema_index > -1) {
-      throw new Error(`Error line ${ast_schema.name.line} col ${ast_schema.name.col + ast_schema.name.text.indexOf('-')}: schema '${ast_schema.name.text}' already defined before`);
+      const existing_schema = list_existing_schema[existing_schema_index];
+      throw new Error(`line ${ast_schema.name.line} col ${ast_schema.name.col + ast_schema.name.text.indexOf('-')}: schema '${ast_schema.name.text}' already defined on ${existing_schema?.filename ?? 'this file'}`);
     }
     const list_new_schema: Schema.Schema[] = [{
       extends: ast_schema.extends,
       type: 'schema',
       name: ast_schema.name.text,
-      items: []
+      items: [],
+      filename
     }];
     list_new_schema.push(...schema_items_result.list_new_schema);
     list_new_schema[0].items = schema_items_result.list_item;
@@ -104,7 +114,7 @@ export function generateSchemaItemType(prop: AST_Schema.ItemType, list_ast_schem
   switch (prop.type) {
     case "native":
       if (!['string', 'number', 'boolean'].includes(prop.native_type.text)) {
-        throw new Error(`Error line ${prop.native_type.line} col ${prop.native_type.col} native type '${prop.native_type.text}' is not supported`);
+        throw new Error(`line ${prop.native_type.line} col ${prop.native_type.col} native type '${prop.native_type.text}' is not supported`);
       }
       return {
         type: {

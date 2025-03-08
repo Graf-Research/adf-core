@@ -8,19 +8,26 @@ export interface AnalyzeAPIResult {
   list_schema: Schema.Schema[]
 }
 
-export function analyzeAPI(list_ast_api: AST_API.API[], list_existing_schema: Schema.Schema[], list_existing_api: API.API[]): AnalyzeAPIResult {
-  const list_api: API.API[] = list_existing_api;
-  const list_schema: Schema.Schema[] = list_existing_schema;
+export interface AnalyzeAPIParams {
+  list_ast_api: AST_API.API[]
+  list_existing_schema: Schema.Schema[]
+  list_existing_api: API.API[]
+  filename?: string
+}
 
-  for (const ast_api of list_ast_api) {
+export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {
+  const list_api: API.API[] = param.list_existing_api;
+  const list_schema: Schema.Schema[] = param.list_existing_schema;
+
+  for (const ast_api of param.list_ast_api) {
     if (!['get', 'post', 'put', 'patch', 'delete'].includes(ast_api.method.text.toLowerCase())) {
-      throw new Error(`Error line ${ast_api.method.line} col ${ast_api.method.col} method '${ast_api.method.text}' is not supported`);
+      throw new Error(`line ${ast_api.method.line} col ${ast_api.method.col} method '${ast_api.method.text}' is not supported`);
     }
 
     const method = (ast_api.method.text.toLowerCase()) as 'get' | 'post' | 'put' | 'patch' | 'delete';
     const return_item = ast_api.items.find(item => item.key === 'return');
     if (!return_item) {
-      throw new Error(`Error line ${ast_api.method.line} api '${ast_api.method.text} ${ast_api.path.text}' return value missing`);
+      throw new Error(`line ${ast_api.method.line} api '${ast_api.method.text} ${ast_api.path.text}' return value missing`);
     }
     const _return = extractReturn(return_item, list_schema);
 
@@ -47,7 +54,8 @@ export function analyzeAPI(list_ast_api: AST_API.API[], list_existing_schema: Sc
           headers: _headers,
           paths: _path,
           queries: _query,
-          return: _return.data
+          return: _return.data,
+          filename: param.filename
         } as API.GET;
         break;
       case "delete":
@@ -60,7 +68,8 @@ export function analyzeAPI(list_ast_api: AST_API.API[], list_existing_schema: Sc
           headers: _headers,
           paths: _path,
           queries: _query,
-          return: _return.data
+          return: _return.data,
+          filename: param.filename
         } as API.DELETE;
         break;
       case "post":
@@ -74,7 +83,8 @@ export function analyzeAPI(list_ast_api: AST_API.API[], list_existing_schema: Sc
           body: _body?.data,
           paths: _path,
           queries: _query,
-          return: _return.data
+          return: _return.data,
+          filename: param.filename
         } as API.POST;
         break;
       case "put":
@@ -88,7 +98,8 @@ export function analyzeAPI(list_ast_api: AST_API.API[], list_existing_schema: Sc
           body: _body?.data,
           paths: _path,
           queries: _query,
-          return: _return.data
+          return: _return.data,
+          filename: param.filename
         } as API.PUT;
         break;
       case "patch":
@@ -102,15 +113,18 @@ export function analyzeAPI(list_ast_api: AST_API.API[], list_existing_schema: Sc
           paths: _path,
           queries: _query,
           body: _body?.data,
-          return: _return.data
+          return: _return.data,
+          filename: param.filename
         } as API.PATCH;
         break;
     }
 
     const existing_api_index: number = list_api.findIndex((a: API.API) => (a.method.toLowerCase() === ast_api.method.text.toLowerCase()) && (a.path == ast_api.path.text));
     if (ast_api.extends) {
+
+      // extends but no existing api to extend
       if (existing_api_index === -1) {
-        throw new Error(`Error line ${ast_api.method.line} col ${ast_api.method.col} endpoint '${ast_api.method.text} ${ast_api.path.text}' doesnt find existing api`);
+        throw new Error(`line ${ast_api.method.line} col ${ast_api.method.col} endpoint '${ast_api.method.text} ${ast_api.path.text}' no existing api found`);
       }
       list_api[existing_api_index].extends = true;
 
@@ -175,7 +189,8 @@ export function analyzeAPI(list_ast_api: AST_API.API[], list_existing_schema: Sc
       list_api[existing_api_index].return = api.return;
     } else {
       if (existing_api_index > -1) {
-        throw new Error(`Error line ${ast_api.method.line} col ${ast_api.method.col} endpoint '${ast_api.method.text} ${ast_api.path.text}' already defined before`);
+        const existing_api = list_api[existing_api_index];
+        throw new Error(`line ${ast_api.method.line} col ${ast_api.method.col} endpoint '${ast_api.method.text} ${ast_api.path.text}' already defined on ${existing_api.filename ?? `this file`}`);
       }
       list_api.push(api);
     }
@@ -193,11 +208,11 @@ function extractHeaders(ast_api_header: AST_API.APIItemHeaders, list_existing_sc
   const data: API.Query[] = [];
   for (const header of ast_api_header.data) {
     if (header.array) {
-      throw new Error(`Error line ${header.key.line} col ${header.key.col} schema header '${header.key.text}' attribute cannot be an array.`);
+      throw new Error(`line ${header.key.line} col ${header.key.col} schema header '${header.key.text}' attribute cannot be an array.`);
     }
     const generated_item_type = generateSchemaItemType(header.type, [], list_existing_schema);
     if (generated_item_type.type.type !== 'native') {
-      throw new Error(`Error line ${header.key.line} col ${header.key.col} schema header '${header.key.text}' attribute only accepting native types only.`)
+      throw new Error(`line ${header.key.line} col ${header.key.col} schema header '${header.key.text}' attribute only accepting native types only.`)
     }
     data.push({
       key: header.key.text,
@@ -212,14 +227,14 @@ function extractPaths(ast_api_path: AST_API.APIItemPath, list_existing_schema: S
   const data: API.Path[] = [];
   for (const path of ast_api_path.data) {
     if (path.array) {
-      throw new Error(`Error line ${path.key.line} col ${path.key.col} schema path '${path.key.text}' attribute cannot be an array.`);
+      throw new Error(`line ${path.key.line} col ${path.key.col} schema path '${path.key.text}' attribute cannot be an array.`);
     }
     if (!path.required) {
-      throw new Error(`Error line ${path.key.line} col ${path.key.col} schema path '${path.key.text}' must have 'required' attribute.`);
+      throw new Error(`line ${path.key.line} col ${path.key.col} schema path '${path.key.text}' must have 'required' attribute.`);
     }
     const generated_item_type = generateSchemaItemType(path.type, [], list_existing_schema);
     if (generated_item_type.type.type !== 'native') {
-      throw new Error(`Error line ${path.key.line} col ${path.key.col} schema path '${path.key.text}' attribute only accepting native types only.`)
+      throw new Error(`line ${path.key.line} col ${path.key.col} schema path '${path.key.text}' attribute only accepting native types only.`)
     }
     data.push({
       key: path.key.text,
@@ -234,7 +249,7 @@ function extractQueries(ast_api_query: AST_API.APIItemQuery, list_existing_schem
   for (const query of ast_api_query.data) {
     const generated_item_type = generateSchemaItemType(query.type, [], list_existing_schema);
     if (generated_item_type.type.type !== 'native') {
-      throw new Error(`Error line ${query.key.line} col ${query.key.col} schema query '${query.key.text}' attribute only accepting native types only.`)
+      throw new Error(`line ${query.key.line} col ${query.key.col} schema query '${query.key.text}' attribute only accepting native types only.`)
     }
     data.push({
       key: query.key.text,

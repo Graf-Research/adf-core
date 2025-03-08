@@ -21,7 +21,7 @@ export namespace AST_Model {
     }
 
     export interface DoubleParam {
-      kind: 'double-param'
+      kind: 'two-param'
       type: moo.Token
       p1: moo.Token
       p2: moo.Token

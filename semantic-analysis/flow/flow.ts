@@ -50,5 +50,6 @@ export namespace Flow {
     type: 'flow'
     name: string
     items: Item[]
+    filename?: string
   }
 }

@@ -7,6 +7,52 @@ if (!process.argv[2]) {
 }
 
 const adf_1 = `
+// --- Start of LLM Generated Code 2025-03-08 12:36:26 ---
+enum PaymentMethod {
+  CreditCard
+  BankTransfer
+  EWallet
+}
+
+table User {
+  id bigint pk inc notnull
+  username varchar(150) notnull unique
+  email varchar(200) notnull unique
+  password varchar(255) notnull
+  created_at timestamp notnull
+}
+
+table Event {
+  id bigint pk inc notnull
+  nama varchar(200) notnull
+  deskripsi varchar(500)
+  tanggal timestamp notnull
+  lokasi varchar(300) notnull
+  harga decimal(10,2) notnull
+}
+
+table Ticket {
+  id bigint pk inc notnull
+  event_id Event.id notnull
+  jenis_tiket varchar(100) notnull
+  harga decimal(10,2) notnull
+  kuota int notnull
+}
+
+table TicketOrder {
+  id bigint pk inc notnull
+  user_id User.id notnull
+  ticket_id Ticket.id notnull
+  jumlah_tiket int notnull
+  total_harga decimal(10,2) notnull
+  status boolean notnull default=true
+  metode_pembayaran PaymentMethod notnull
+  created_at timestamp notnull
+}
+// --- End of LLM Generated Code 2025-03-08 12:36:26 ---
+
+`;
+const adf_2 = `
 // --- Start of LLM Generated Code 2025-03-08 12:42:17 ---
 api get /admin/events {
   description get list of events by admin
@@ -73,9 +119,9 @@ api DELETE /admin/event/:id {
   return boolean required
 }
 // --- End of LLM Generated Code 2025-03-08 12:42:17 ---
-`;
-const adf_2 = `
 
+`;
+const adf_3 = `
 // --- Start of LLM Generated Code 2025-03-08 12:37:47 ---
 api GET /events {
   description get list of events with their details
@@ -108,62 +154,16 @@ api GET /event/:id {
 }
 // --- End of LLM Generated Code 2025-03-08 12:37:47 ---
 `;
-const adf_3 = `
-// --- Start of LLM Generated Code 2025-03-08 12:36:26 ---
-enum PaymentMethod {
-  CreditCard
-  BankTransfer
-  EWallet
-}
-
-table User {
-  id bigint pk inc notnull
-  username varchar(150) notnull unique
-  email varchar(200) notnull unique
-  password varchar(255) notnull
-  created_at timestamp notnull
-}
-
-table Event {
-  id bigint pk inc notnull
-  nama varchar(200) notnull
-  deskripsi varchar(500)
-  tanggal timestamp notnull
-  lokasi varchar(300) notnull
-  harga decimal(10,2) notnull
-}
-
-table Ticket {
-  id bigint pk inc notnull
-  event_id Event.id notnull
-  jenis_tiket varchar(100) notnull
-  harga decimal(10,2) notnull
-  kuota int notnull
-}
-
-table TicketOrder {
-  id bigint pk inc notnull
-  user_id User.id notnull
-  ticket_id Ticket.id notnull
-  jumlah_tiket int notnull
-  total_harga decimal(10,2) notnull
-  status boolean notnull default=true
-  metode_pembayaran PaymentMethod notnull
-  created_at timestamp notnull
-}
-// --- End of LLM Generated Code 2025-03-08 12:36:26 ---
-
-`;
 
 
 async function main(filename: string) {
   try {
     const result: SAResult = await parseFromFileItems([{
       filename: 'Model/Main',
-      content: adf_3
+      content: adf_1
     }, {
       filename: 'API/Admin/Event',
-      content: adf_1
+      content: adf_3
     }, {
       filename: 'API/User/Event',
       content: adf_2

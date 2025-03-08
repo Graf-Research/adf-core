@@ -15,6 +15,7 @@ import { flowToADF } from "./to-adf/flow-to-adf";
 import { schemaToADF } from "./to-adf/schema-to-adf";
 import { apiToADF } from "./to-adf/api-to-adf";
 import { FileItem } from "./file.types";
+import _ from "lodash";
 
 export {
   Import,
@@ -133,25 +134,30 @@ export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
     list_schema: [],
     list_api: [],
   };
-  for (const item of list_ast_models) {
+
+  const group_ast_model_filename = _.groupBy(list_ast_models, x => x.filename);
+  for (const filename of Object.keys(group_ast_model_filename)) {
+    const list_items = group_ast_model_filename[filename];
     try {
       output = await analyze({
-        list_ast: [item.ast_item], 
+        list_ast: list_items.map(x => x.ast_item), 
         relative_path: '', 
         current_result: output, 
         config: undefined,
-        filename: item.filename
+        filename: filename
       });
     } catch (err: any) {
-      throw new Error(`${item.filename ? `[file: ${item.filename}]` : '[On This File]'} ${err.message}`);
+      throw new Error(`${filename ? `[file: ${filename}]` : '[On This File]'} ${err.message}`);
     }
   }
 
   // take all schema out
-  for (const item of list_ast_non_models) {
+  const group_ast_non_model_filename = _.groupBy(list_ast_non_models, x => x.filename);
+  for (const filename of Object.keys(group_ast_non_model_filename)) {
+    const list_items = group_ast_non_model_filename[filename];
     try {
       output = await analyze({
-        list_ast: [item.ast_item], 
+        list_ast: list_items.map(x => x.ast_item), 
         relative_path: '', 
         current_result: output, 
         config: {
@@ -162,21 +168,22 @@ export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
             schemaOnly: true
           }
         },
-        filename: item.filename
+        filename: filename
       });
       
       output.list_api = [];
       console.log(output)
     } catch (err: any) {
-      throw new Error(`${item.filename ? `[file: ${item.filename}]` : '[On This File]'} ${err.message}`);
+      throw new Error(`${filename ? `[file: ${filename}]` : '[On This File]'} ${err.message}`);
     }
   }
 
   // ignore schema, api use defined schema
-  for (const item of list_ast_non_models) {
+  for (const filename of Object.keys(group_ast_non_model_filename)) {
+    const list_items = group_ast_non_model_filename[filename];
     try {
       output = await analyze({
-        list_ast: [item.ast_item], 
+        list_ast: list_items.map(x => x.ast_item), 
         relative_path: '', 
         current_result: output, 
         config: {
@@ -184,10 +191,10 @@ export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
             allInlineSchemaAlreadyDefined: true
           }
         },
-        filename: item.filename
+        filename: filename
       });
     } catch (err: any) {
-      throw new Error(`${item.filename ? `[file: ${item.filename}]` : '[On This File]'} ${err.message}`);
+      throw new Error(`${filename ? `[file: ${filename}]` : '[On This File]'} ${err.message}`);
     }
   }
 

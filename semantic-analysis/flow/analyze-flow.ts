@@ -1,10 +1,12 @@
 import { AST_Flow } from "../../ast/types/flow";
+import { AnalysisConfig } from "../sem-analysis.interface";
 import { Flow } from "./flow";
 
 
 export interface AnalyzeFlowParams {
   list_ast_flow: AST_Flow.Flow[]
   filename?: string
+  config?: AnalysisConfig
 }
 
 export function analyzeFlow(param: AnalyzeFlowParams): Flow.Flow[] {

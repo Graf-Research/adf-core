@@ -48,18 +48,20 @@ export async function analyze(param: AnalyzeParams): Promise<SAResult> {
     list_ast_table, 
     list_existing_enum: result_import.list_enum, 
     list_existing_table: result_import.list_table, 
-    config: param.config?.model,
+    config: param.config,
     filename: param.filename
   });
   const result_flow = analyzeFlow({
     list_ast_flow,
-    filename: param.filename
+    filename: param.filename,
+    config: param.config,
   });
   const result_schema = analyzeSchema({
     list_ast_schema, 
     list_existing_enum: result_enum_table.list_enum,
     list_existing_table: result_enum_table.list_table,
     list_existing_schema: result_import.list_schema,
+    config: param.config,
     filename: param.filename
   });
   const result_api = analyzeAPI({
@@ -68,6 +70,7 @@ export async function analyze(param: AnalyzeParams): Promise<SAResult> {
     list_existing_api: result_import.list_api,
     list_existing_enum: result_enum_table.list_enum,
     list_existing_table: result_enum_table.list_table,
+    config: param.config,
     filename: param.filename
   });
 

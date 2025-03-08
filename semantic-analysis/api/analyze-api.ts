@@ -3,6 +3,7 @@ import { generateSchemaItemType } from "../schema/analyze-schema";
 import { Schema } from "../schema/schema";
 import { API } from "./api";
 import { Model } from "../model/model";
+import { AnalysisConfig } from "../sem-analysis.interface";
 
 export interface AnalyzeAPIResult {
   list_api: API.API[]
@@ -16,6 +17,7 @@ export interface AnalyzeAPIParams {
   list_existing_schema: Schema.Schema[]
   list_existing_api: API.API[]
   filename?: string
+  config?: AnalysisConfig
 }
 
 export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {

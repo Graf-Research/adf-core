@@ -1,6 +1,7 @@
 import _ from "lodash";
 import { AST_Model } from "../../ast/types/model";
 import { Model } from "./model";
+import { AnalysisConfig } from "../sem-analysis.interface";
 
 export interface AnalyzeModelResult {
   list_table: Model.Table[]
@@ -258,7 +259,7 @@ export interface AnalyzeModelParams {
   list_ast_table: AST_Model.Table[]
   list_existing_enum: Model.Enum[]
   list_existing_table: Model.Table[]
-  config?: ModelAnalysisConfig
+  config?: AnalysisConfig
   filename?: string
 }
 
@@ -301,7 +302,7 @@ export function analyzeModel(param: AnalyzeModelParams): AnalyzeModelResult {
       throw new Error(`line ${ast_table.name.line} col ${ast_table.name.col + ast_table.name.text.indexOf('-')}: table name '${ast_table.name.text}' contains illegal character '-'`);
     }
 
-    const list_fields = getTableFields(ast_table, param.list_ast_table, list_enum, list_table, param.config);
+    const list_fields = getTableFields(ast_table, param.list_ast_table, list_enum, list_table, param.config?.model);
     const existing_table_index: number = list_table.findIndex((t: Model.Table) => t.name === ast_table.name.text);
     if (ast_table.extends) {
       if (existing_table_index === -1) {

@@ -1,6 +1,7 @@
 import { AST_Model } from "../../ast/types/model";
 import { AST_Schema } from "../../ast/types/schema";
 import { Model } from "../model/model";
+import { AnalysisConfig } from "../sem-analysis.interface";
 import { Schema } from "./schema";
 
 export interface AnalyzeSchemaParams {
@@ -9,6 +10,13 @@ export interface AnalyzeSchemaParams {
   list_existing_enum: Model.Enum[]
   list_existing_schema: Schema.Schema[]
   filename?: string
+  config?: AnalysisConfig
+}
+
+export interface SchemaAnalysisConfig {
+  ignoreMissingEnum?: boolean
+  ignoreMissingTable?: boolean
+  ignoreMissingSchema?: boolean
 }
 
 export function analyzeSchema(param: AnalyzeSchemaParams): Schema.Schema[] {
@@ -25,7 +33,8 @@ export function analyzeSchema(param: AnalyzeSchemaParams): Schema.Schema[] {
       list_schema, 
       param.list_existing_enum,
       param.list_existing_table,
-      param.filename
+      param.filename,
+      param.config
     );
     for (const i of Object.keys(create_schema_from_ast_result.updated_schema)) {
       list_schema[+i] = create_schema_from_ast_result.updated_schema[+i];
@@ -47,11 +56,12 @@ function createSchemaFromAST(
   list_existing_schema: Schema.Schema[], 
   list_existing_enum: Model.Enum[],
   list_existing_table: Model.Table[], 
-  filename?: string
+  filename?: string,
+  config?: AnalysisConfig
 ): CreateSchemaFromASTResult {
   // TODO: check schema name duplicate
 
-  const schema_items_result: SchemaItemsResult = getSchemaItems(ast_schema.items, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table);
+  const schema_items_result: SchemaItemsResult = getSchemaItems(ast_schema.items, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table, config);
   const existing_schema_index: number = list_existing_schema.findIndex((s: Schema.Schema) => s.name === ast_schema.name.text);
   if (ast_schema.extends) {
     if (existing_schema_index === -1) {
@@ -104,13 +114,14 @@ export function getSchemaItems(
   list_ast_schema: AST_Schema.Schema[], 
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
-  list_existing_table: Model.Table[]
+  list_existing_table: Model.Table[],
+  config?: AnalysisConfig
 ): SchemaItemsResult {
   const list_new_schema: Schema.Schema[] = [];
   const list_item: Schema.Item[] = [];
 
   for (const prop of items) {
-    const generated_item_type = generateSchemaItemType(prop.type, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table);
+    const generated_item_type = generateSchemaItemType(prop.type, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table, config);
     list_new_schema.push(...generated_item_type.list_new_schema);
     list_item.push({
       key: prop.key.text,
@@ -136,7 +147,8 @@ export function generateSchemaItemType(
   list_ast_schema: AST_Schema.Schema[], 
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
-  list_existing_table: Model.Table[]
+  list_existing_table: Model.Table[],
+  config?: AnalysisConfig
 ): GetSchemaItemTypeResult {
   switch (prop.type) {
     case "native":
@@ -154,9 +166,11 @@ export function generateSchemaItemType(
       const [ste_type, ste_value] = prop.name.text.split('.');
       switch (ste_type) {
         case 'table':
-          const table_index = list_existing_table.findIndex((t: Model.Table) => t.name == ste_value);
-          if (table_index === -1) {
-            throw new Error(`line ${prop.name.line} col ${prop.name.col} table '${ste_value}' not found`);
+          if (!config?.schema?.ignoreMissingTable) {
+            const table_index = list_existing_table.findIndex((t: Model.Table) => t.name == ste_value);
+            if (table_index === -1) {
+              throw new Error(`line ${prop.name.line} col ${prop.name.col} table '${ste_value}' not found`);
+            }
           }
           return {
             type: {
@@ -166,9 +180,11 @@ export function generateSchemaItemType(
             list_new_schema: []
           };
         case 'enum':
-          const enum_index = list_existing_enum.findIndex((t: Model.Enum) => t.name == ste_value);
-          if (enum_index === -1) {
-            throw new Error(`line ${prop.name.line} col ${prop.name.col} enum '${ste_value}' not found`);
+          if (!config?.schema?.ignoreMissingEnum) {
+            const enum_index = list_existing_enum.findIndex((t: Model.Enum) => t.name == ste_value);
+            if (enum_index === -1) {
+              throw new Error(`line ${prop.name.line} col ${prop.name.col} enum '${ste_value}' not found`);
+            }
           }
           return {
             type: {
@@ -178,9 +194,11 @@ export function generateSchemaItemType(
             list_new_schema: []
           };
         case 'schema':
-          const schema_index = list_existing_schema.findIndex((t: Schema.Schema) => t.name == ste_value);
-          if (schema_index === -1) {
-            throw new Error(`line ${prop.name.line} col ${prop.name.col} schema '${ste_value}' not found`);
+          if (!config?.schema?.ignoreMissingSchema) {
+            const schema_index = list_existing_schema.findIndex((t: Schema.Schema) => t.name == ste_value);
+            if (schema_index === -1) {
+              throw new Error(`line ${prop.name.line} col ${prop.name.col} schema '${ste_value}' not found`);
+            }
           }
           return {
             type: {

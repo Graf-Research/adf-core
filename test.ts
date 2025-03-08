@@ -8,19 +8,6 @@ if (!process.argv[2]) {
 
 const adf_1 = `
 
-// START:a8791432-4b80-4760-8973-42c9219cbc5d
-table A {}
-
-table CC {}
-
-// END:a8791432-4b80-4760-8973-42c9219cbc5d
-// START:f9f25951-4cdf-4a27-b69e-3c11117fb231
-table B {}
-
-// END:f9f25951-4cdf-4a27-b69e-3c11117fb231
-// START:160c87bf-aeec-4758-8204-a1f46ce85b28
-
-
 
 api get /user/:id {
   description get user by id
@@ -30,7 +17,7 @@ api get /user/:id {
   path {
     id number required
   }
-  return table.User required
+  return table.Y required
 }
 
 

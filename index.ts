@@ -1,4 +1,4 @@
-import { ast } from "./ast/ast";
+import { ast, AST_Item } from "./ast/ast";
 import { analyze, SAResult } from './semantic-analysis/sem-analysis';
 import fs from 'fs';
 import axios from 'axios'
@@ -89,26 +89,44 @@ export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
     list_api: [],
   };
 
+  interface ItemAndAST {
+    item: FileItem
+    list_ast: AST_Item[]
+  }
+
+  const list_ast_models: ItemAndAST[] = [];
+  const list_ast_non_models: ItemAndAST[] = [];
   for (const item of items) {
+    const list_ast = ast(item.content);
+    if (list_ast.find((item: AST_Item) => item.type === 'table' || item.type === 'enum')) {
+      list_ast_models.push({
+        item,
+        list_ast
+      });
+      continue;
+    }
+    list_ast_non_models.push({
+      item,
+      list_ast
+    });
+  }
+
+  for (const item of [...list_ast_models, ...list_ast_non_models]) {
     try {
-      item.result = await parseString(item.content, output, undefined, item.filename);
-      output.list_enum = [
-        ...item.result.list_enum
-      ];
-      output.list_table = [
-        ...item.result.list_table
-      ];
-      output.list_flow = [
-        ...item.result.list_flow
-      ];
-      output.list_schema = [
-        ...item.result.list_schema
-      ];
-      output.list_api = [
-        ...item.result.list_api
-      ];
+      item.item.result = await analyze({
+        list_ast: item.list_ast, 
+        relative_path: '', 
+        current_result: output, 
+        config: undefined,
+        filename: item.item.filename
+      });
+      output.list_enum = item.item.result.list_enum;
+      output.list_table = item.item.result.list_table;
+      output.list_flow = item.item.result.list_flow;
+      output.list_schema = item.item.result.list_schema;
+      output.list_api = item.item.result.list_api;
     } catch (err: any) {
-      throw new Error(`${item.filename ? `[file: ${item.filename}]` : '[On This File]'} ${err.message}`);
+      throw new Error(`${item.item.filename ? `[file: ${item.item.filename}]` : '[On This File]'} ${err.message}`);
     }
   }
 

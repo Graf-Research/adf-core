@@ -86,32 +86,42 @@ export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
     ast_item: AST_Item
   }
 
+  interface ItemAndListAST {
+    filename: string
+    list_ast: AST_Item[]
+  }
+
+  const list_ast_all: ItemAndListAST[] = items.reduce((acc: ItemAndListAST[], item: FileItem) => [...acc, { filename: item.filename, list_ast: ast(item.content)}], []);
   const list_ast_models: ItemAndAST[] = [];
   const list_ast_non_models: ItemAndAST[] = [];
-  for (const item of items) {
-    const list_ast = ast(item.content);
-    for (const ast_item of list_ast) {
+  
+  for (const list_item of list_ast_all) {
+    for (const ast_item of list_item.list_ast) {
       if (ast_item.type === 'enum' || ast_item.type === 'table') {
         list_ast_models.push({
-          filename: item.filename,
+          filename: list_item.filename,
           ast_item
-        })
+        });
       }
     }
-    for (const ast_item of list_ast) {
+  }
+  for (const list_item of list_ast_all) {
+    for (const ast_item of list_item.list_ast) {
       if (ast_item.type === 'schema') {
         list_ast_models.push({
-          filename: item.filename,
+          filename: list_item.filename,
           ast_item
-        })
+        });
       }
     }
-    for (const ast_item of list_ast) {
+  }
+  for (const list_item of list_ast_all) {
+    for (const ast_item of list_item.list_ast) {
       if (ast_item.type === 'api') {
         list_ast_non_models.push({
-          filename: item.filename,
+          filename: list_item.filename,
           ast_item
-        })
+        });
       }
     }
   }
@@ -123,13 +133,57 @@ export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
     list_schema: [],
     list_api: [],
   };
-  for (const item of [...list_ast_models, ...list_ast_non_models]) {
+  for (const item of list_ast_models) {
     try {
       output = await analyze({
         list_ast: [item.ast_item], 
         relative_path: '', 
         current_result: output, 
         config: undefined,
+        filename: item.filename
+      });
+    } catch (err: any) {
+      throw new Error(`${item.filename ? `[file: ${item.filename}]` : '[On This File]'} ${err.message}`);
+    }
+  }
+
+  // take all schema out
+  for (const item of list_ast_non_models) {
+    try {
+      output = await analyze({
+        list_ast: [item.ast_item], 
+        relative_path: '', 
+        current_result: output, 
+        config: {
+          schema: {
+            ignoreMissingSchema: true
+          },
+          api: {
+            schemaOnly: true
+          }
+        },
+        filename: item.filename
+      });
+      
+      output.list_api = [];
+      console.log(output)
+    } catch (err: any) {
+      throw new Error(`${item.filename ? `[file: ${item.filename}]` : '[On This File]'} ${err.message}`);
+    }
+  }
+
+  // ignore schema, api use defined schema
+  for (const item of list_ast_non_models) {
+    try {
+      output = await analyze({
+        list_ast: [item.ast_item], 
+        relative_path: '', 
+        current_result: output, 
+        config: {
+          api: {
+            allInlineSchemaAlreadyDefined: true
+          }
+        },
         filename: item.filename
       });
     } catch (err: any) {

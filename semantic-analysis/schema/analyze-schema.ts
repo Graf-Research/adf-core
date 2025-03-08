@@ -122,7 +122,7 @@ export function getSchemaItems(
   const list_item: Schema.Item[] = [];
 
   for (const prop of items) {
-    const generated_item_type = generateSchemaItemType(prop.type, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table, filename, config);
+    const generated_item_type = generateSchemaItemType('schema', prop.type, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table, filename, config);
     list_new_schema.push(...generated_item_type.list_new_schema);
     list_item.push({
       key: prop.key.text,
@@ -144,6 +144,7 @@ export interface GetSchemaItemTypeResult {
 }
 
 export function generateSchemaItemType(
+  called_from: 'api' | 'schema',
   prop: AST_Schema.ItemType, 
   list_ast_schema: AST_Schema.Schema[], 
   list_existing_schema: Schema.Schema[],
@@ -212,6 +213,19 @@ export function generateSchemaItemType(
       }
       break;
     case "new-schema":
+      if (called_from == 'api' && config?.api?.allInlineSchemaAlreadyDefined) {
+        const schema_index = list_existing_schema.findIndex((t: Schema.Schema) => t.name == prop.schema.name.text);
+        if (schema_index === -1) {
+          throw new Error(`line ${prop.schema.name.line} col ${prop.schema.name.col} schema '${prop.schema.name.text}' not found`);
+        }
+        return {
+          type: {
+            type: 'schema',
+            schema_name: prop.schema.name.text
+          },
+          list_new_schema: []
+        };
+      }
       const create_schema_from_ast_result: CreateSchemaFromASTResult = createSchemaFromAST(
         prop.schema, 
         list_ast_schema, 

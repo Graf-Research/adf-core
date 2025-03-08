@@ -1,11 +1,12 @@
 import { AST_Model } from "../../ast/types/model";
 import { AST_Schema } from "../../ast/types/schema";
+import { Model } from "../model/model";
 import { Schema } from "./schema";
 
 export interface AnalyzeSchemaParams {
   list_ast_schema: AST_Schema.Schema[]
-  list_ast_table: AST_Model.Table[]
-  list_ast_enum: AST_Model.Enum[]
+  list_existing_table: Model.Table[]
+  list_existing_enum: Model.Enum[]
   list_existing_schema: Schema.Schema[]
   filename?: string
 }
@@ -18,7 +19,14 @@ export function analyzeSchema(param: AnalyzeSchemaParams): Schema.Schema[] {
       throw new Error(`line ${ast_schema.name.line} col ${ast_schema.name.col + ast_schema.name.text.indexOf('-')}: schema name '${ast_schema.name.text}' contains illegal character '-'`);
     }
     
-    const create_schema_from_ast_result: CreateSchemaFromASTResult = createSchemaFromAST(ast_schema, param.list_ast_schema, list_schema, param.filename);
+    const create_schema_from_ast_result: CreateSchemaFromASTResult = createSchemaFromAST(
+      ast_schema, 
+      param.list_ast_schema, 
+      list_schema, 
+      param.list_existing_enum,
+      param.list_existing_table,
+      param.filename
+    );
     for (const i of Object.keys(create_schema_from_ast_result.updated_schema)) {
       list_schema[+i] = create_schema_from_ast_result.updated_schema[+i];
     }
@@ -33,10 +41,17 @@ interface CreateSchemaFromASTResult {
   updated_schema: {[key: number]: Schema.Schema}
 }
 
-function createSchemaFromAST(ast_schema: AST_Schema.Schema, list_ast_schema: AST_Schema.Schema[], list_existing_schema: Schema.Schema[], filename?: string): CreateSchemaFromASTResult {
+function createSchemaFromAST(
+  ast_schema: AST_Schema.Schema, 
+  list_ast_schema: AST_Schema.Schema[], 
+  list_existing_schema: Schema.Schema[], 
+  list_existing_enum: Model.Enum[],
+  list_existing_table: Model.Table[], 
+  filename?: string
+): CreateSchemaFromASTResult {
   // TODO: check schema name duplicate
 
-  const schema_items_result: SchemaItemsResult = getSchemaItems(ast_schema.items, list_ast_schema, list_existing_schema);
+  const schema_items_result: SchemaItemsResult = getSchemaItems(ast_schema.items, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table);
   const existing_schema_index: number = list_existing_schema.findIndex((s: Schema.Schema) => s.name === ast_schema.name.text);
   if (ast_schema.extends) {
     if (existing_schema_index === -1) {
@@ -84,12 +99,18 @@ export interface SchemaItemsResult {
   list_new_schema: Schema.Schema[]
 }
 
-export function getSchemaItems(items: AST_Schema.Item[], list_ast_schema: AST_Schema.Schema[], list_existing_schema: Schema.Schema[]): SchemaItemsResult {
+export function getSchemaItems(
+  items: AST_Schema.Item[], 
+  list_ast_schema: AST_Schema.Schema[], 
+  list_existing_schema: Schema.Schema[],
+  list_existing_enum: Model.Enum[],
+  list_existing_table: Model.Table[]
+): SchemaItemsResult {
   const list_new_schema: Schema.Schema[] = [];
   const list_item: Schema.Item[] = [];
 
   for (const prop of items) {
-    const generated_item_type = generateSchemaItemType(prop.type, list_ast_schema, list_existing_schema);
+    const generated_item_type = generateSchemaItemType(prop.type, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table);
     list_new_schema.push(...generated_item_type.list_new_schema);
     list_item.push({
       key: prop.key.text,
@@ -110,7 +131,13 @@ export interface GetSchemaItemTypeResult {
   list_new_schema: Schema.Schema[]
 }
 
-export function generateSchemaItemType(prop: AST_Schema.ItemType, list_ast_schema: AST_Schema.Schema[], list_existing_schema: Schema.Schema[]): GetSchemaItemTypeResult {
+export function generateSchemaItemType(
+  prop: AST_Schema.ItemType, 
+  list_ast_schema: AST_Schema.Schema[], 
+  list_existing_schema: Schema.Schema[],
+  list_existing_enum: Model.Enum[],
+  list_existing_table: Model.Table[]
+): GetSchemaItemTypeResult {
   switch (prop.type) {
     case "native":
       if (!['string', 'number', 'boolean'].includes(prop.native_type.text)) {
@@ -127,7 +154,10 @@ export function generateSchemaItemType(prop: AST_Schema.ItemType, list_ast_schem
       const [ste_type, ste_value] = prop.name.text.split('.');
       switch (ste_type) {
         case 'table':
-          // TODO: check table existence
+          const table_index = list_existing_table.findIndex((t: Model.Table) => t.name == ste_value);
+          if (table_index === -1) {
+            throw new Error(`line ${prop.name.line} col ${prop.name.col} table '${ste_value}' not found`);
+          }
           return {
             type: {
               type: 'table',
@@ -136,7 +166,10 @@ export function generateSchemaItemType(prop: AST_Schema.ItemType, list_ast_schem
             list_new_schema: []
           };
         case 'enum':
-          // TODO: check enum existence
+          const enum_index = list_existing_enum.findIndex((t: Model.Enum) => t.name == ste_value);
+          if (enum_index === -1) {
+            throw new Error(`line ${prop.name.line} col ${prop.name.col} enum '${ste_value}' not found`);
+          }
           return {
             type: {
               type: 'enum',
@@ -145,7 +178,10 @@ export function generateSchemaItemType(prop: AST_Schema.ItemType, list_ast_schem
             list_new_schema: []
           };
         case 'schema':
-          // TODO: check schema existence
+          const schema_index = list_existing_schema.findIndex((t: Schema.Schema) => t.name == ste_value);
+          if (schema_index === -1) {
+            throw new Error(`line ${prop.name.line} col ${prop.name.col} schema '${ste_value}' not found`);
+          }
           return {
             type: {
               type: 'schema',
@@ -156,7 +192,13 @@ export function generateSchemaItemType(prop: AST_Schema.ItemType, list_ast_schem
       }
       break;
     case "new-schema":
-      const create_schema_from_ast_result: CreateSchemaFromASTResult = createSchemaFromAST(prop.schema, list_ast_schema, list_existing_schema);
+      const create_schema_from_ast_result: CreateSchemaFromASTResult = createSchemaFromAST(
+        prop.schema, 
+        list_ast_schema, 
+        list_existing_schema,
+        list_existing_enum,
+        list_existing_table
+      );
       return {
         type: {
           type: 'schema',

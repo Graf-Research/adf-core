@@ -57,8 +57,8 @@ export async function analyze(param: AnalyzeParams): Promise<SAResult> {
   });
   const result_schema = analyzeSchema({
     list_ast_schema, 
-    list_ast_table, 
-    list_ast_enum, 
+    list_existing_enum: result_enum_table.list_enum,
+    list_existing_table: result_enum_table.list_table,
     list_existing_schema: result_import.list_schema,
     filename: param.filename
   });
@@ -66,6 +66,8 @@ export async function analyze(param: AnalyzeParams): Promise<SAResult> {
     list_ast_api, 
     list_existing_schema: result_schema, 
     list_existing_api: result_import.list_api,
+    list_existing_enum: result_enum_table.list_enum,
+    list_existing_table: result_enum_table.list_table,
     filename: param.filename
   });
 

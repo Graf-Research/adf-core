@@ -2,6 +2,7 @@ import { AST_API } from "../../ast/types/api";
 import { generateSchemaItemType } from "../schema/analyze-schema";
 import { Schema } from "../schema/schema";
 import { API } from "./api";
+import { Model } from "../model/model";
 
 export interface AnalyzeAPIResult {
   list_api: API.API[]
@@ -10,6 +11,8 @@ export interface AnalyzeAPIResult {
 
 export interface AnalyzeAPIParams {
   list_ast_api: AST_API.API[]
+  list_existing_table: Model.Table[]
+  list_existing_enum: Model.Enum[]
   list_existing_schema: Schema.Schema[]
   list_existing_api: API.API[]
   filename?: string
@@ -29,7 +32,7 @@ export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {
     if (!return_item) {
       throw new Error(`line ${ast_api.method.line} api '${ast_api.method.text} ${ast_api.path.text}' return value missing`);
     }
-    const _return = extractReturn(return_item, list_schema);
+    const _return = extractReturn(return_item, list_schema, param.list_existing_enum, param.list_existing_table);
 
     const description = ast_api.items.find(item => item.key === 'description');
     const body_item = ast_api.items.find(item => item.key === 'body');
@@ -37,10 +40,10 @@ export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {
     const path_item = ast_api.items.find(item => item.key === 'path');
     const query_item = ast_api.items.find(item => item.key === 'query');
 
-    const _headers = headers_item ? extractHeaders(headers_item, list_schema) : undefined;
-    const _path = path_item ? extractPaths(path_item, list_schema) : undefined;
-    const _query = query_item ? extractQueries(query_item, list_schema) : undefined;
-    const _body = body_item ? extractBody(body_item, list_schema) : undefined;
+    const _headers = headers_item ? extractHeaders(headers_item, list_schema, param.list_existing_enum, param.list_existing_table) : undefined;
+    const _path = path_item ? extractPaths(path_item, list_schema, param.list_existing_enum, param.list_existing_table) : undefined;
+    const _query = query_item ? extractQueries(query_item, list_schema, param.list_existing_enum, param.list_existing_table) : undefined;
+    const _body = body_item ? extractBody(body_item, list_schema, param.list_existing_enum, param.list_existing_table) : undefined;
 
     let api: API.API;
     switch (method) {
@@ -173,7 +176,7 @@ export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {
         && (list_api[existing_api_index].method === 'post' || list_api[existing_api_index].method === 'patch' || list_api[existing_api_index].method === 'put')
       ) {
         for (const b of api.body ?? []) {
-          const i = (list_api[existing_api_index].body ?? []).findIndex((_b: API.Body) => _b.key == b.key);
+          const i: number = (list_api[existing_api_index].body ?? []).findIndex((_b: API.Body) => _b.key == b.key);
           if (i > -1) {
             list_api[existing_api_index].body![i] = b;
           } else {
@@ -204,13 +207,18 @@ export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {
   };
 }
 
-function extractHeaders(ast_api_header: AST_API.APIItemHeaders, list_existing_schema: Schema.Schema[]): API.Headers[] {
+function extractHeaders(
+  ast_api_header: AST_API.APIItemHeaders, 
+  list_existing_schema: Schema.Schema[],
+  list_existing_enum: Model.Enum[],
+  list_existing_table: Model.Table[], 
+): API.Headers[] {
   const data: API.Query[] = [];
   for (const header of ast_api_header.data) {
     if (header.array) {
       throw new Error(`line ${header.key.line} col ${header.key.col} schema header '${header.key.text}' attribute cannot be an array.`);
     }
-    const generated_item_type = generateSchemaItemType(header.type, [], list_existing_schema);
+    const generated_item_type = generateSchemaItemType(header.type, [], list_existing_schema, list_existing_enum, list_existing_table);
     if (generated_item_type.type.type !== 'native') {
       throw new Error(`line ${header.key.line} col ${header.key.col} schema header '${header.key.text}' attribute only accepting native types only.`)
     }
@@ -223,7 +231,12 @@ function extractHeaders(ast_api_header: AST_API.APIItemHeaders, list_existing_sc
   return data;
 }
 
-function extractPaths(ast_api_path: AST_API.APIItemPath, list_existing_schema: Schema.Schema[]): API.Path[] {
+function extractPaths(
+  ast_api_path: AST_API.APIItemPath, 
+  list_existing_schema: Schema.Schema[],
+  list_existing_enum: Model.Enum[],
+  list_existing_table: Model.Table[], 
+): API.Path[] {
   const data: API.Path[] = [];
   for (const path of ast_api_path.data) {
     if (path.array) {
@@ -232,7 +245,7 @@ function extractPaths(ast_api_path: AST_API.APIItemPath, list_existing_schema: S
     if (!path.required) {
       throw new Error(`line ${path.key.line} col ${path.key.col} schema path '${path.key.text}' must have 'required' attribute.`);
     }
-    const generated_item_type = generateSchemaItemType(path.type, [], list_existing_schema);
+    const generated_item_type = generateSchemaItemType(path.type, [], list_existing_schema, list_existing_enum, list_existing_table);
     if (generated_item_type.type.type !== 'native') {
       throw new Error(`line ${path.key.line} col ${path.key.col} schema path '${path.key.text}' attribute only accepting native types only.`)
     }
@@ -244,10 +257,15 @@ function extractPaths(ast_api_path: AST_API.APIItemPath, list_existing_schema: S
   return data;
 }
 
-function extractQueries(ast_api_query: AST_API.APIItemQuery, list_existing_schema: Schema.Schema[]): API.Query[] {
+function extractQueries(
+  ast_api_query: AST_API.APIItemQuery, 
+  list_existing_schema: Schema.Schema[],
+  list_existing_enum: Model.Enum[],
+  list_existing_table: Model.Table[], 
+): API.Query[] {
   const data: API.Query[] = [];
   for (const query of ast_api_query.data) {
-    const generated_item_type = generateSchemaItemType(query.type, [], list_existing_schema);
+    const generated_item_type = generateSchemaItemType(query.type, [], list_existing_schema, list_existing_enum, list_existing_table);
     if (generated_item_type.type.type !== 'native') {
       throw new Error(`line ${query.key.line} col ${query.key.col} schema query '${query.key.text}' attribute only accepting native types only.`)
     }
@@ -266,12 +284,17 @@ interface ExtractBodyResult {
   list_new_schema: Schema.Schema[]
 }
 
-function extractBody(ast_api_body: AST_API.APIItemBody, list_existing_schema: Schema.Schema[]): ExtractBodyResult {
+function extractBody(
+  ast_api_body: AST_API.APIItemBody, 
+  list_existing_schema: Schema.Schema[],
+  list_existing_enum: Model.Enum[],
+  list_existing_table: Model.Table[], 
+): ExtractBodyResult {
   const data: API.Body[] = [];
   const list_new_schema: Schema.Schema[] = [];
 
   for (const body of ast_api_body.data) {
-    const generated_item_type = generateSchemaItemType(body.type, [], list_existing_schema);
+    const generated_item_type = generateSchemaItemType(body.type, [], list_existing_schema, list_existing_enum, list_existing_table);
     data.push({
       key: body.key.text,
       type: generated_item_type.type,
@@ -292,8 +315,13 @@ interface ExtractReturnResult {
   list_new_schema: Schema.Schema[]
 }
 
-function extractReturn(ast_api_return: AST_API.APIItemReturn, list_existing_schema: Schema.Schema[]): ExtractReturnResult {
-  const generated_item_type = generateSchemaItemType(ast_api_return.type, [], list_existing_schema);
+function extractReturn(
+  ast_api_return: AST_API.APIItemReturn, 
+  list_existing_schema: Schema.Schema[],
+  list_existing_enum: Model.Enum[],
+  list_existing_table: Model.Table[],
+): ExtractReturnResult {
+  const generated_item_type = generateSchemaItemType(ast_api_return.type, [], list_existing_schema, list_existing_enum, list_existing_table);
   return {
     data: {
       type: generated_item_type.type,

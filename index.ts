@@ -81,52 +81,59 @@ export function JSONSpecificationToADF(result: SAResult): string {
 }
 
 export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
-  const output: SAResult = {
-    list_enum: [],
-    list_table: [],
-    list_flow: [],
-    list_schema: [],
-    list_api: [],
-  };
-
   interface ItemAndAST {
-    item: FileItem
-    list_ast: AST_Item[]
+    filename: string
+    ast_item: AST_Item
   }
 
   const list_ast_models: ItemAndAST[] = [];
   const list_ast_non_models: ItemAndAST[] = [];
   for (const item of items) {
     const list_ast = ast(item.content);
-    if (list_ast.find((item: AST_Item) => item.type === 'table' || item.type === 'enum')) {
-      list_ast_models.push({
-        item,
-        list_ast
-      });
-      continue;
+    for (const ast_item of list_ast) {
+      if (ast_item.type === 'enum' || ast_item.type === 'table') {
+        list_ast_models.push({
+          filename: item.filename,
+          ast_item
+        })
+      }
     }
-    list_ast_non_models.push({
-      item,
-      list_ast
-    });
+    for (const ast_item of list_ast) {
+      if (ast_item.type === 'schema') {
+        list_ast_models.push({
+          filename: item.filename,
+          ast_item
+        })
+      }
+    }
+    for (const ast_item of list_ast) {
+      if (ast_item.type === 'api') {
+        list_ast_non_models.push({
+          filename: item.filename,
+          ast_item
+        })
+      }
+    }
   }
 
+  let output: SAResult = {
+    list_enum: [],
+    list_table: [],
+    list_flow: [],
+    list_schema: [],
+    list_api: [],
+  };
   for (const item of [...list_ast_models, ...list_ast_non_models]) {
     try {
-      item.item.result = await analyze({
-        list_ast: item.list_ast, 
+      output = await analyze({
+        list_ast: [item.ast_item], 
         relative_path: '', 
         current_result: output, 
         config: undefined,
-        filename: item.item.filename
+        filename: item.filename
       });
-      output.list_enum = item.item.result.list_enum;
-      output.list_table = item.item.result.list_table;
-      output.list_flow = item.item.result.list_flow;
-      output.list_schema = item.item.result.list_schema;
-      output.list_api = item.item.result.list_api;
     } catch (err: any) {
-      throw new Error(`${item.item.filename ? `[file: ${item.item.filename}]` : '[On This File]'} ${err.message}`);
+      throw new Error(`${item.filename ? `[file: ${item.filename}]` : '[On This File]'} ${err.message}`);
     }
   }
 

@@ -61,7 +61,7 @@ function createSchemaFromAST(
 ): CreateSchemaFromASTResult {
   // TODO: check schema name duplicate
 
-  const schema_items_result: SchemaItemsResult = getSchemaItems(ast_schema.items, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table, config);
+  const schema_items_result: SchemaItemsResult = getSchemaItems(ast_schema.items, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table, filename, config);
   const existing_schema_index: number = list_existing_schema.findIndex((s: Schema.Schema) => s.name === ast_schema.name.text);
   if (ast_schema.extends) {
     if (existing_schema_index === -1) {
@@ -115,13 +115,14 @@ export function getSchemaItems(
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
   list_existing_table: Model.Table[],
+  filename?: string,
   config?: AnalysisConfig
 ): SchemaItemsResult {
   const list_new_schema: Schema.Schema[] = [];
   const list_item: Schema.Item[] = [];
 
   for (const prop of items) {
-    const generated_item_type = generateSchemaItemType(prop.type, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table, config);
+    const generated_item_type = generateSchemaItemType(prop.type, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table, filename, config);
     list_new_schema.push(...generated_item_type.list_new_schema);
     list_item.push({
       key: prop.key.text,
@@ -148,6 +149,7 @@ export function generateSchemaItemType(
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
   list_existing_table: Model.Table[],
+  filename?: string,
   config?: AnalysisConfig
 ): GetSchemaItemTypeResult {
   switch (prop.type) {
@@ -215,7 +217,9 @@ export function generateSchemaItemType(
         list_ast_schema, 
         list_existing_schema,
         list_existing_enum,
-        list_existing_table
+        list_existing_table,
+        filename,
+        config
       );
       return {
         type: {

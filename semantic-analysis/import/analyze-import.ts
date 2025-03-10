@@ -1,6 +1,8 @@
 import { parse, SAResult } from "../../index"
 import { AST_Import } from "../../ast/types/import"
 import { AnalysisConfig } from "../sem-analysis.interface";
+import { AST_Model } from "../../ast/types/model";
+import { AST_Schema } from "../../ast/types/schema";
 
 export interface AnalyzeImportParams {
   list_ast_import: AST_Import.Import[]

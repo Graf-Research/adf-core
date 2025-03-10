@@ -70,7 +70,14 @@ function findDuplicateColumn(column_name: string, list_column: AST_Model.TableCo
   return null;
 }
 
-function getTableFields(ast_table: AST_Model.Table, list_ast_table: AST_Model.Table[], list_enum: Model.Enum[], list_table: Model.Table[], config?: ModelAnalysisConfig) {
+function getTableFields(
+  ast_table: AST_Model.Table,
+  list_ast_table: AST_Model.Table[],
+  list_enum: Model.Enum[],
+  list_table: Model.Table[],
+
+  config?: AnalysisConfig
+) {
   const list_fields: Model.TableColumn[] = [];
   for (const field of ast_table.items) {
     if (field.name.text.includes('-')) {
@@ -104,7 +111,7 @@ function getTableFields(ast_table: AST_Model.Table, list_ast_table: AST_Model.Ta
             }
             break;
           default:
-            if (isEnumExist(field.type.type.text, list_enum) || config?.ignoreMissingEnum) {
+            if (isEnumExist(field.type.type.text, list_enum) || config?.model?.ignoreMissingEnum) {
               type = {
                 kind: 'enum',
                 type: 'enum',
@@ -144,7 +151,7 @@ function getTableFields(ast_table: AST_Model.Table, list_ast_table: AST_Model.Ta
         break;
       case "relation":
         const [foreign_table, foreign_key] = field.type.name.text.split('.');
-        if (!isTableWithKeyExist(foreign_table, foreign_key, list_ast_table, list_table) && !config?.ignoreTableRelation) {
+        if (!isTableWithKeyExist(foreign_table, foreign_key, (config?.lookup_items?.list_ast_table ?? list_ast_table), list_table) && !config?.model?.ignoreTableRelation) {
           throw new Error(`line ${field.type.name.line} col ${field.type.name.col} relation table or field '${field.type.name.text}' doesnt exist`);
         }
         type = {
@@ -302,7 +309,13 @@ export function analyzeModel(param: AnalyzeModelParams): AnalyzeModelResult {
       throw new Error(`line ${ast_table.name.line} col ${ast_table.name.col + ast_table.name.text.indexOf('-')}: table name '${ast_table.name.text}' contains illegal character '-'`);
     }
 
-    const list_fields = getTableFields(ast_table, param.list_ast_table, list_enum, list_table, param.config?.model);
+    const list_fields = getTableFields(
+      ast_table,
+      param.list_ast_table,
+      list_enum,
+      list_table,
+      param.config
+    );
     const existing_table_index: number = list_table.findIndex((t: Model.Table) => t.name === ast_table.name.text);
     if (ast_table.extends) {
       if (existing_table_index === -1) {

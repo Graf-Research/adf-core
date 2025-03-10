@@ -26,7 +26,6 @@ export interface AnalyzeAPIParams {
 }
 
 export interface APIAnalysisConfig {
-  allInlineSchemaAlreadyDefined?: boolean
   schemaOnly?: boolean
 }
 
@@ -53,6 +52,7 @@ export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {
       list_schema,
       param.list_existing_enum,
       param.list_existing_table,
+
       param.filename,
       param.config
     );
@@ -96,6 +96,7 @@ export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {
       list_schema,
       param.list_existing_enum,
       param.list_existing_table,
+
       param.filename,
       param.config
     ) : undefined;
@@ -108,6 +109,7 @@ export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {
       list_schema,
       param.list_existing_enum,
       param.list_existing_table,
+      
       param.filename,
       param.config
     ) : undefined;
@@ -283,6 +285,7 @@ function extractHeaders(
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
   list_existing_table: Model.Table[], 
+
   filename?: string,
   config?: AnalysisConfig
 ): API.Headers[] {
@@ -300,6 +303,7 @@ function extractHeaders(
       list_existing_schema,
       list_existing_enum,
       list_existing_table,
+
       filename,
       config);
     if (generated_item_type.type.type !== 'native') {
@@ -323,6 +327,7 @@ function extractPaths(
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
   list_existing_table: Model.Table[], 
+
   filename?: string,
   config?: AnalysisConfig
 ): API.Path[] {
@@ -343,6 +348,7 @@ function extractPaths(
       list_existing_schema,
       list_existing_enum,
       list_existing_table,
+
       filename,
       config
     );
@@ -366,6 +372,8 @@ function extractQueries(
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
   list_existing_table: Model.Table[], 
+
+
   filename?: string,
   config?: AnalysisConfig
 ): API.Query[] {
@@ -380,6 +388,7 @@ function extractQueries(
       list_existing_schema,
       list_existing_enum,
       list_existing_table,
+
       filename,
       config
     );
@@ -410,6 +419,8 @@ function extractBody(
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
   list_existing_table: Model.Table[], 
+
+
   filename?: string,
   config?: AnalysisConfig
 ): ExtractBodyResult {
@@ -458,6 +469,8 @@ function extractReturn(
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
   list_existing_table: Model.Table[], 
+
+
   filename?: string,
   config?: AnalysisConfig
 ): ExtractReturnResult {
@@ -470,6 +483,7 @@ function extractReturn(
     list_existing_schema,
     list_existing_enum,
     list_existing_table,
+
     filename,
     config
   );

@@ -19,6 +19,7 @@ export interface SchemaAnalysisConfig {
   ignoreMissingEnum?: boolean
   ignoreMissingTable?: boolean
   ignoreMissingSchema?: boolean
+  allInlineSchemaAlreadyDefined?: boolean
 }
 
 export function analyzeSchema(param: AnalyzeSchemaParams): Schema.Schema[] {
@@ -30,6 +31,7 @@ export function analyzeSchema(param: AnalyzeSchemaParams): Schema.Schema[] {
     }
     
     const create_schema_from_ast_result: CreateSchemaFromASTResult = createSchemaFromAST(
+      'schema',
       ast_schema, 
       param.list_ast_enum,
       param.list_ast_table,
@@ -37,6 +39,7 @@ export function analyzeSchema(param: AnalyzeSchemaParams): Schema.Schema[] {
       list_schema, 
       param.list_existing_enum,
       param.list_existing_table,
+
       param.filename,
       param.config
     );
@@ -55,6 +58,7 @@ interface CreateSchemaFromASTResult {
 }
 
 function createSchemaFromAST(
+  called_from: 'api' | 'schema',
   ast_schema: AST_Schema.Schema, 
   list_ast_enum: AST_Model.Enum[], 
   list_ast_table: AST_Model.Table[], 
@@ -62,6 +66,7 @@ function createSchemaFromAST(
   list_existing_schema: Schema.Schema[], 
   list_existing_enum: Model.Enum[],
   list_existing_table: Model.Table[], 
+
   filename?: string,
   config?: AnalysisConfig
 ): CreateSchemaFromASTResult {
@@ -75,6 +80,7 @@ function createSchemaFromAST(
     list_existing_schema, 
     list_existing_enum, 
     list_existing_table, 
+
     filename, 
     config
   );
@@ -100,9 +106,11 @@ function createSchemaFromAST(
       }
     };
   } else {
-    if (existing_schema_index > -1) {
-      const existing_schema = list_existing_schema[existing_schema_index];
-      throw new Error(`line ${ast_schema.name.line} col ${ast_schema.name.col + ast_schema.name.text.indexOf('-')}: schema '${ast_schema.name.text}' already defined on ${existing_schema?.filename ?? 'this file'}`);
+    if (!config?.schema?.allInlineSchemaAlreadyDefined) {
+      if (existing_schema_index > -1) {
+        const existing_schema = list_existing_schema[existing_schema_index];
+        throw new Error(`line ${ast_schema.name.line} col ${ast_schema.name.col + ast_schema.name.text.indexOf('-')}: schema '${ast_schema.name.text}' already defined on ${existing_schema?.filename ?? 'this file'}`);
+      }
     }
     const list_new_schema: Schema.Schema[] = [{
       extends: ast_schema.extends,
@@ -133,6 +141,7 @@ export function getSchemaItems(
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
   list_existing_table: Model.Table[],
+
   filename?: string,
   config?: AnalysisConfig
 ): SchemaItemsResult {
@@ -148,7 +157,8 @@ export function getSchemaItems(
       list_ast_schema, 
       list_existing_schema, 
       list_existing_enum, 
-      list_existing_table, 
+      list_existing_table,
+
       filename, 
       config
     );
@@ -181,6 +191,7 @@ export function generateSchemaItemType(
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
   list_existing_table: Model.Table[],
+
   filename?: string,
   config?: AnalysisConfig
 ): GetSchemaItemTypeResult {
@@ -229,7 +240,7 @@ export function generateSchemaItemType(
           };
         case 'schema':
           if (!config?.schema?.ignoreMissingSchema) {
-            const schema_index = list_ast_schema.findIndex((t: AST_Schema.Schema) => t.name.value == ste_value);
+            const schema_index = (config?.lookup_items?.list_ast_schema ?? list_ast_schema).findIndex((t: AST_Schema.Schema) => t.name.value == ste_value);
             if (schema_index === -1) {
               throw new Error(`line ${prop.name.line} col ${prop.name.col} schema '${ste_value}' not found`);
             }
@@ -244,8 +255,8 @@ export function generateSchemaItemType(
       }
       break;
     case "new-schema":
-      if (called_from == 'api' && config?.api?.allInlineSchemaAlreadyDefined) {
-        const schema_index = list_existing_schema.findIndex((t: Schema.Schema) => t.name == prop.schema.name.text);
+      if (config?.schema?.allInlineSchemaAlreadyDefined) {
+        const schema_index = (config?.lookup_items?.list_ast_schema ?? list_ast_schema).findIndex((t: AST_Schema.Schema) => t.name.value == prop.schema.name.text);
         if (schema_index === -1) {
           throw new Error(`line ${prop.schema.name.line} col ${prop.schema.name.col} schema '${prop.schema.name.text}' not found`);
         }
@@ -258,6 +269,7 @@ export function generateSchemaItemType(
         };
       }
       const create_schema_from_ast_result: CreateSchemaFromASTResult = createSchemaFromAST(
+        called_from,
         prop.schema, 
         list_ast_enum,
         list_ast_table,
@@ -265,6 +277,7 @@ export function generateSchemaItemType(
         list_existing_schema,
         list_existing_enum,
         list_existing_table,
+
         filename,
         config
       );

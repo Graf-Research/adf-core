@@ -9,13 +9,17 @@ import { Flow } from './semantic-analysis/flow/flow';
 import { API } from './semantic-analysis/api/api';
 import { Model } from './semantic-analysis/model/model';
 import { Import } from './semantic-analysis/import/import';
-import { AnalysisConfig } from "./semantic-analysis/sem-analysis.interface";
+import { AnalysisConfig, LookupItems } from "./semantic-analysis/sem-analysis.interface";
 import { enumToADF, modelToADF, tableToADF } from "./to-adf/model-to-adf";
 import { flowToADF } from "./to-adf/flow-to-adf";
 import { schemaToADF } from "./to-adf/schema-to-adf";
 import { apiToADF } from "./to-adf/api-to-adf";
 import { FileItem } from "./file.types";
 import _ from "lodash";
+import { AST_Model } from "./ast/types/model";
+import { AST_Schema } from "./ast/types/schema";
+import { getASTSchemaFromAPI, getASTSchemaFromSchema } from "./semantic-analysis/schema/schema.utility";
+import { AST_API } from "./ast/types/api";
 
 export {
   Import,
@@ -81,20 +85,23 @@ export function JSONSpecificationToADF(result: SAResult): string {
   ].join('\n');
 }
 
-export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
-  interface ItemAndAST {
-    filename: string
-    ast_item: AST_Item
-  }
 
-  interface ItemAndListAST {
-    filename: string
-    list_ast: AST_Item[]
-  }
+interface ItemAndAST {
+  filename: string
+  ast_item: AST_Item
+}
 
+interface ItemAndListAST {
+  filename: string
+  list_ast: AST_Item[]
+}
+
+export async function parseFromFileItems(items: FileItem[], config?: AnalysisConfig): Promise<SAResult> {
   const list_ast_all: ItemAndListAST[] = items.reduce((acc: ItemAndListAST[], item: FileItem) => [...acc, { filename: item.filename, list_ast: ast(item.content)}], []);
   const list_ast_models: ItemAndAST[] = [];
   const list_ast_non_models: ItemAndAST[] = [];
+
+  // const ignore_item_names: IgnoreItemNames = getAllItemNameFromItemAndListASK(list_ast_all);
   
   for (const list_item of list_ast_all) {
     for (const ast_item of list_item.list_ast) {
@@ -135,6 +142,42 @@ export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
     list_api: [],
   };
 
+  const lookup_source_list_ast_enum: AST_Model.Enum[] = list_ast_all.reduce((acc: AST_Model.Enum[], curr: ItemAndListAST) => [
+    ...acc, 
+    ...curr.list_ast.filter(a => a.type === 'enum')
+  ], []);
+
+  const lookup_source_list_ast_table: AST_Model.Table[] = list_ast_all.reduce((acc: AST_Model.Table[], curr: ItemAndListAST) => [
+    ...acc, 
+    ...curr.list_ast.filter(a => a.type === 'table')
+  ], []);
+
+  const lookup_source_list_ast_schema_1o: AST_Schema.Schema[] = list_ast_all.reduce((acc: AST_Schema.Schema[], curr: ItemAndListAST) => [
+    ...acc, 
+    ...curr.list_ast.filter(a => a.type === 'schema')
+  ], []);
+
+  const lookup_source_list_ast_api: AST_API.API[] = list_ast_all.reduce((acc: AST_API.API[], curr: ItemAndListAST) => [
+    ...acc, 
+    ...curr.list_ast.filter(a => a.type === 'api')
+  ], []);
+  const lookup_source_list_ast_schema_inline: AST_Schema.Schema[] = getASTSchemaFromSchema(lookup_source_list_ast_schema_1o);
+  const lookup_source_list_ast_schema_api: AST_Schema.Schema[] = getASTSchemaFromAPI(lookup_source_list_ast_api);
+
+  const lookup_source_list_ast_schema = [
+    ...lookup_source_list_ast_schema_1o,
+    ...lookup_source_list_ast_schema_inline,
+    ...lookup_source_list_ast_schema_api
+  ];
+
+  const lookup_items: LookupItems = {
+    list_ast_enum: lookup_source_list_ast_enum,
+    list_ast_table: lookup_source_list_ast_table,
+    list_ast_schema: lookup_source_list_ast_schema,
+  };
+  // console.log(lookup_source_list_ast_schema);
+
+  // MODEL
   const group_ast_model_filename = _.groupBy(list_ast_models, x => x.filename);
   for (const filename of Object.keys(group_ast_model_filename)) {
     const list_items = group_ast_model_filename[filename];
@@ -143,7 +186,10 @@ export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
         list_ast: list_items.map(x => x.ast_item), 
         relative_path: '', 
         current_result: output, 
-        config: undefined,
+        config: {
+          ...config,
+          lookup_items
+        },
         filename: filename
       });
     } catch (err: any) {
@@ -151,6 +197,8 @@ export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
     }
   }
 
+  console.log('+++++++11111');
+  // NON MODEL
   // take all schema out
   const group_ast_non_model_filename = _.groupBy(list_ast_non_models, x => x.filename);
   for (const filename of Object.keys(group_ast_non_model_filename)) {
@@ -166,18 +214,21 @@ export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
           },
           api: {
             schemaOnly: true
-          }
+          },
         },
         filename: filename
       });
       
       output.list_api = [];
-      console.log(output)
+      // console.log(output)
     } catch (err: any) {
+      // console.log(list_items.map(x => x.ast_item));
       throw new Error(`${filename ? `[file: ${filename}]` : '[On This File]'} ${err.message}`);
     }
   }
 
+  console.log('+++++++22222');
+  // NON MODEL
   // ignore schema, api use defined schema
   for (const filename of Object.keys(group_ast_non_model_filename)) {
     const list_items = group_ast_non_model_filename[filename];
@@ -187,9 +238,10 @@ export async function parseFromFileItems(items: FileItem[]): Promise<SAResult> {
         relative_path: '', 
         current_result: output, 
         config: {
-          api: {
+          ...config,
+          schema: {
             allInlineSchemaAlreadyDefined: true
-          }
+          },
         },
         filename: filename
       });

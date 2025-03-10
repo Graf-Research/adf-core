@@ -1,0 +1,1718 @@
+
+
+// START:9047d3a5-34f1-4eda-91bf-26952aa166e4
+table UserCart {
+  id bigint pk inc notnull
+  id_user User.id notnull
+  id_posting_sell_product PostingSellProduct.id notnull
+  qty int notnull
+  created_at timestamp notnull
+  updated_at timestamp
+}
+
+enum UserTransactionHistoryType {
+  WAITING_FOR_PAYMENT
+  CANCELLED
+  PROCESSING
+  SENDING
+  RECEIVED
+}
+
+table UserTransaction {
+  id bigint pk inc notnull
+  id_user User.id notnull
+  type UserTransactionHistoryType notnull
+  created_at timestamp notnull
+
+
+  penerima_nama varchar(255) notnull
+  penerima_provinsi varchar(255) notnull
+  penerima_kota_kab varchar(255) notnull
+  penerima_kecamatan varchar(255) notnull
+  penerima_desa_kelurahan varchar(255) notnull
+  penerima_kode_pos varchar(255) notnull
+  penerima_alamat varchar(255) notnull
+
+
+  pengiriman_metode varchar(255) notnull
+  pengiriman_logo varchar(255) notnull
+  pengiriman_biaya bigint notnull
+
+
+  biaya_admin bigint notnull default=0
+}
+
+table UserTransactionItem {
+  id bigint pk inc notnull
+  id_user_transaction UserTransaction.id notnull
+  id_posting_sell_product PostingSellProduct.id notnull
+  qty int notnull
+}
+
+table UserTransactionHistory {
+  id bigint pk inc notnull
+  type UserTransactionHistoryType notnull
+  id_user_transaction UserTransaction.id notnull
+  notes text
+  created_at timestamp notnull
+}
+
+// END:9047d3a5-34f1-4eda-91bf-26952aa166e4
+// START:73ed6992-3dd2-48f5-895c-2105e1998af4
+schema MessageWithAttachments {
+  message table.Message required
+  list_attachment array table.MessageAttachment required
+}
+
+// END:73ed6992-3dd2-48f5-895c-2105e1998af4
+// START:53a9f9e3-dedd-457e-b348-05112f0bc611
+schema CommunityWithMembers {
+  community table.Community required
+  list_members array table.CommunityMember required
+}
+
+// END:53a9f9e3-dedd-457e-b348-05112f0bc611
+// START:a1e609db-2123-4afb-a027-099e585f205c
+
+
+table UserReport {
+  id bigint pk inc notnull
+  id_user User.id notnull
+  id_user_reported User.id
+  id_community_reported Community.id
+  id_topic_community_reported CommunityTopic.id
+  reason text notnull
+  created_at timestamp notnull
+}
+
+table Notification {
+  id bigint pk inc notnull
+  id_user User.id notnull
+  content text notnull
+  id_ref_community Community.id
+  id_ref_community_topic CommunityTopic.id
+  id_ref_posting Posting.id
+  id_ref_user_transaction UserTransaction.id
+  created_at timestamp notnull
+}
+
+// END:a1e609db-2123-4afb-a027-099e585f205c
+// START:b770268e-eb87-4e21-830f-51d8c8117ca8
+table Message {
+  id bigint pk inc notnull
+
+
+
+
+  is_latest_message boolean notnull default=false
+  data text notnull
+  ts timestamp notnull
+}
+
+enum AttachmentType {
+  IMAGE
+  VIDEO
+  FILE
+}
+
+table MessageAttachment {
+  id bigint pk inc notnull
+
+  filename varchar(255)
+  type AttachmentType notnull
+  url varchar(255)
+  is_uploaded boolean notnull default=false
+  upload_token varchar(255) notnull
+  uploaded_at timestamp
+}
+
+// END:b770268e-eb87-4e21-830f-51d8c8117ca8
+// START:b2d59193-52f0-4a82-ae62-9243810f8470
+api post /community {
+  description Buat komunitas (nama komunitas dan daftar public ID anggota)
+  headers {
+    authorization string required
+  }
+  body {
+    data schema CommunityPayload {
+      thumbnail string
+      name string required
+      members_public_id array string required
+    } required
+  }
+  return table.Community required
+}
+
+api get /community/by-public-id/:public_id {
+  description Get community data by public ID
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+  }
+  return schema GetCommunityDataResponse {
+    community table.Community required
+    is_admin boolean required
+  } required
+}
+
+api delete /community/by-public-id/:public_id {
+  description Hapus komunitas (soft delete)
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+  }
+  return boolean required
+}
+
+api post /community/by-public-id/:public_id/leave {
+  description Keluar dari komunitas
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+  }
+  body {
+    __nobody string
+  }
+  return boolean required
+}
+
+api get /community/by-public-id/:public_id/member {
+  description daftar anggota komunitas
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+  }
+  return array table.CommunityMember required
+}
+
+api post /community/by-public-id/:public_id/member {
+  description Tambah list anggota baru komunitas
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+  }
+  body {
+    list_member_public_hash array string required
+  }
+  return schema.GetCommunityDataResponse required
+}
+
+api delete /community/by-public-id/:public_id/member/:public_hash {
+  description Hapus anggota dari komunitas
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+    public_hash string required
+  }
+  return schema.GetCommunityDataResponse required
+}
+
+api delete /community/by-public-id/:public_id/member/:public_hash/delete-admin {
+  description Hapus anggota dari admin komunitas
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+    public_hash string required
+  }
+  return schema.GetCommunityDataResponse required
+}
+
+api post /community/by-public-id/:public_id/member/:public_hash/set-admin {
+  description Jadikan anggota admin komunitas
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+    public_hash string required
+  }
+  body {
+    __nobody string
+  }
+  return schema.GetCommunityDataResponse required
+}
+
+api post /community/by-public-id/:public_id/topic {
+  description Tambah topik komunitas
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+    public_hash string required
+  }
+  body {
+    data schema TopicPayload {
+      icon_url string required
+      name string required
+      color string required
+      list_community_member_id array number required
+    } required
+  }
+  return table.CommunityTopic required
+}
+
+api get /community/by-public-id/:public_id/topic/:topic_id {
+  description Detail topik komunitas
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+    public_hash string required
+    topic_id number required
+  }
+  return table.CommunityTopic required
+}
+
+api delete /community/by-public-id/:public_id/topic/:topic_id {
+  description Hapus topik komunitas (soft delete)
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+    public_hash string required
+    topic_id number required
+  }
+  return boolean required
+}
+
+api put /community/by-public-id/:public_id/topic/:topic_id {
+  description Ubah topik komunitas
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+    public_hash string required
+    topic_id number required
+  }
+  body {
+    data schema.TopicPayload required
+  }
+  return table.CommunityTopic required
+}
+
+api get /community/message/:public_id {
+  description Ambil percakapan dari komunitas (public_id). Tambahkan parameter opsional "ID pesan terakhir" untuk mengambil hanya beberapa pesan terakhir.
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+  }
+  query {
+    limit number
+    offset number
+    latest_message_id number
+  }
+  return schema CommunityRoomMessagesData {
+    messages array schema.MessageWithAttachments required
+    community table.Community required
+  } required
+}
+
+api post /community/message/:public_id/send {
+  description Kirim pesan ke komunitas (public_id). Update data pesan terakhir.
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+  }
+  body {
+    data schema.MessagePayload required
+  }
+  return schema.SendMessageResponse required
+}
+
+api get /my-community {
+  description Ambil data komunitas yang diikuti oleh user yang sedang login
+  headers {
+    authorization string required
+  }
+  query {
+    limit number
+    offst number
+  }
+  return schema MyCommunityResult {
+    total number required
+    data array table.CommunityMember required
+  } required
+}
+
+// END:b2d59193-52f0-4a82-ae62-9243810f8470
+// START:561d6741-3a6b-47ab-8e40-f27f8ef78d76
+schema MessageAttachmentData {
+  type string required
+  filename string required
+}
+
+schema MessagePayload {
+  message string
+  attachment schema.MessageAttachmentData
+}
+
+schema SendMessageResponse {
+  messages array schema.MessageWithAttachments required
+  upload_token string
+}
+
+// END:561d6741-3a6b-47ab-8e40-f27f8ef78d76
+// START:939e4634-34fb-4d55-bbf1-7dd98a45962b
+api get /adm/provinsi {
+  description Data Provinsi
+  headers {
+    authorization string required
+  }
+  return array table.Provinsi required
+}
+
+api get /adm/provinsi/:id_provinsi/kota-kab {
+  description Data Kota/Kabupaten berdasarkan ID Provinsi
+  path {
+    id_provinsi number required
+  }
+  headers {
+    authorization string required
+  }
+  return array table.KotaKabupaten required
+}
+api get /adm/provinsi/:id_provinsi/kota-kab/:id_kota_kab/kecamatan {
+  description Data Kecamatan berdasarkan ID Provinsi dan ID Kota Kabupaten
+  path {
+    id_provinsi number required
+    id_kota_kab number required
+  }
+  headers {
+    authorization string required
+  }
+  return array table.Kecamatan required
+}
+api get /adm/provinsi/:id_provinsi/kota-kab/:id_kota_kab/kecamatan/:id_kecamatan {
+  description Data Kecamatan berdasarkan ID Provinsi dan ID Kota Kabupaten
+  path {
+    id_provinsi number required
+    id_kota_kab number required
+    id_kecamatan number required
+  }
+  headers {
+    authorization string required
+  }
+  return array table.DesaKelurahan required
+}
+
+// END:939e4634-34fb-4d55-bbf1-7dd98a45962b
+// START:b05bf917-c888-42e7-a6b6-08afaedb7c38
+api post /fcm-token {
+  description Update FCM Token
+  headers {
+    authorization string required
+  }
+  body {
+    token string required
+  }
+  return boolean required
+}
+
+// END:b05bf917-c888-42e7-a6b6-08afaedb7c38
+// START:0c1207b2-291e-44a0-9449-0aff3d0b14d0
+enum PostingType {
+  PLAIN_TEXT
+  IMAGE_STATIC
+  IMAGE_GIF
+  AUDIO
+  VIDEO
+  POOL
+  FILE
+  SELL_PRODUCT
+  JOB_VACANCY
+}
+
+table Posting {
+  id bigint pk inc notnull
+  id_community Community.id
+  id_user User.id notnull
+  type PostingType
+  hash varchar(255) notnull
+  visibility_only_me boolean notnull default=false
+  created_at timestamp notnull
+  deleted_at timestamp
+}
+
+table PostingFile {
+  id bigint pk inc notnull
+  id_posting Posting.id notnull
+  file_url varchar(255) notnull
+  caption text
+}
+
+table ProductCategory {
+  id bigint pk inc notnull
+  label varchar(255) notnull
+}
+
+table PostingSellProduct {
+  id bigint pk inc notnull
+  id_posting Posting.id notnull
+  id_product_category ProductCategory.id notnull
+  name varchar(255) notnull
+  price bigint notnull
+  description text
+  new_product boolean default=true
+  location varchar(255)
+  quantity float notnull default=1
+}
+
+table ProductImage {
+  id bigint pk inc notnull
+  id_posting_sell_product PostingSellProduct.id notnull
+  image_url varchar(255) notnull
+  caption text
+}
+
+table PostingPlainText {
+  id bigint pk inc notnull
+  id_posting Posting.id notnull
+  content text notnull
+}
+
+table PostingImageStatic {
+  id bigint pk inc notnull
+  id_posting Posting.id notnull
+  image_url varchar(255) notnull
+  caption text
+}
+
+table PostingImageGIF {
+  id bigint pk inc notnull
+  id_posting Posting.id notnull
+  image_url varchar(255) notnull
+  caption text
+}
+
+table PostingAudio {
+  id bigint pk inc notnull
+  id_posting Posting.id notnull
+  audio_url varchar(255) notnull
+  caption text
+}
+
+table PostingVideo {
+  id bigint pk inc notnull
+  id_posting Posting.id notnull
+  video_url varchar(255) notnull
+  caption text
+}
+
+table PostingPool {
+  id bigint pk inc notnull
+  id_posting Posting.id notnull
+  question text
+}
+
+table PostingPoolOption {
+  id bigint pk inc notnull
+  id_posting_pool PostingPool.id notnull
+  data varchar(1000) notnull
+}
+
+table PostingPoolVote {
+  id bigint pk inc notnull
+  id_posting_pool_option PostingPoolOption.id notnull
+  id_posting_pool PostingPool.id notnull
+  id_user User.id notnull
+  voted_at timestamp
+}
+
+table Comment {
+  id bigint pk inc notnull
+  id_user User.id notnull
+  id_posting Posting.id
+  id_parent_comment Comment.id
+  has_children boolean notnull default=false
+  content text notnull
+  created_at timestamp notnull
+}
+
+enum VoteType {
+  UP
+  DOWN
+}
+
+table Vote {
+  id bigint pk inc notnull
+  id_posting Posting.id notnull
+  id_user User.id notnull
+  type VoteType notnull
+}
+
+table CommentVote {
+  id bigint pk inc notnull
+  id_comment Comment.id notnull
+  type VoteType notnull
+}
+
+
+table PostingJobVacancy {
+  id bigint pk inc notnull
+  id_posting Posting.id notnull
+  id_company JobCompany.id
+  position varchar(255) notnull
+  location varchar(255) notnull
+  type varchar(255) notnull
+  description text
+  salary text
+}
+
+table JobCompany {
+  id bigint pk inc notnull
+  name varchar(255) notnull
+  logo varchar(255) notnull
+  description text
+  address text
+}
+
+table JobDescription {
+  id bigint pk inc notnull
+  id_posting_job_vacancy PostingJobVacancy.id notnull
+  data text
+}
+
+table JobQualification {
+  id bigint pk inc notnull
+  id_posting_job_vacancy PostingJobVacancy.id notnull
+  data text
+}
+
+table JobApplicant {
+  id bigint pk inc notnull
+  id_posting_job_vacancy PostingJobVacancy.id notnull
+  id_user User.id notnull
+  resume_url varchar(255)
+  applied_at timestamp
+}
+
+// END:0c1207b2-291e-44a0-9449-0aff3d0b14d0
+// START:2f2c1ad8-e471-422f-bbc3-4e80618bb99f
+schema OTPHashResponse {
+  hash string required
+}
+
+// END:2f2c1ad8-e471-422f-bbc3-4e80618bb99f
+// START:3aafc80b-9aae-4bf8-ab3b-bcdbec343fd7
+schema DaftarUsaha {
+    total number required
+    data array table.JadabBussiness required
+}
+
+schema DaftarPayment {
+    total number required
+    data array table.Payment required
+}
+// END:3aafc80b-9aae-4bf8-ab3b-bcdbec343fd7
+// START:8fedbd61-d689-40ab-b1d9-5aabe461691c
+api post /checkout {
+  description Daftar produk di keranjang saya
+  headers {
+    authorization string required
+  }
+  body {
+    data schema CheckoutPayload {
+      alamat_penerima schema DataAlamatPenerima {
+        nama_penerima string required
+        provinsi string required
+        kota_kabupaten string required
+        kecamatan string required
+        desa_kelurahan string required
+        kode_pos string required
+        alamat string required
+      } required
+      metode_pengiriman schema DataMetodePengiriman {
+        metode string required
+        logo string required
+        biaya number required
+      } required
+      list_item array schema ItemCheckout {
+        id_product number required
+        qty number required
+      } required
+      biaya_admin number required
+    } required
+  }
+  return array table.UserTransaction required
+}
+
+api get /marketplace {
+  description List Produk Marketplace
+  headers {
+    authorization string required
+  }
+  query {
+    q string
+  }
+  return array table.PostingSellProduct required
+}
+
+api get /marketplace/:id {
+  description Detail Produk
+  headers {
+    authorization string required
+  }
+  path {
+    id number required
+  }
+  return table.PostingSellProduct required
+}
+
+api post /marketplace/:id/add-to-cart {
+  description Tambah produk ke keranjang
+  headers {
+    authorization string required
+  }
+  path {
+    id number required
+  }
+  body {
+    qty number required
+  }
+  return table.UserCart required
+}
+
+api get /my-cart {
+  description Daftar produk di keranjang saya
+  headers {
+    authorization string required
+  }
+  return array table.UserCart required
+}
+
+api get /my-transaction {
+  description List My Transaction
+  headers {
+    authorization string required
+  }
+  query {
+    list_type_csv string
+  }
+  return array table.UserTransaction required
+}
+
+api get /my-transaction/:id {
+  description Detail My Transaction
+  headers {
+    authorization string required
+  }
+  path {
+    id number required
+  }
+  return table.UserTransaction required
+}
+
+api get /product-category {
+  description Ambil daftar kategori produk
+  headers {
+    authorization string required
+  }
+  return array table.ProductCategory required
+}
+
+// END:8fedbd61-d689-40ab-b1d9-5aabe461691c
+// START:b0b356b8-b23d-482c-9b42-f0991c8909d5
+enum JenisKelamin {
+  L
+  P
+}
+
+table RegistrasiJadab {
+  id bigint pk inc notnull
+
+
+
+  nama_lengkap varchar(255) notnull
+  nomor_ktp varchar(16) notnull
+  tempat_lahir varchar(255) notnull
+  tanggal_lahir date notnull
+  jenis_kelamin JenisKelamin notnull
+
+
+
+
+
+
+  kodepos varchar(5)
+  rt varchar(2)
+  rw varchar(2)
+
+
+  nomor_telepon varchar(255)
+  email varchar(255)
+  pekerjaan varchar(255)
+  url_foto_ktp varchar(255)
+
+  completed_at timestamp
+  verified_at timestamp
+}
+
+enum kredit {
+  Ya
+  Tidak
+}
+
+enum StatusPengajuanUsaha {
+  Pending
+  Ditolak
+  Disetujui
+}
+
+table JadabBussiness {
+  id bigint pk inc notnull
+
+  nama_usaha  varchar(255) notnull
+  bidang varchar(255) notnull
+  alamat varchar(255) notnull
+  deskripsi varchar(255) notnull
+  foto_usaha_url varchar(255) notnull
+  jumlah_modal decimal notnull
+  rencana varchar(255) notnull
+  estimasi_untung decimal notnull
+  bagi_hasil decimal notnull
+  aset varchar(255) notnull
+  kredit kredit notnull
+
+  nomor_rekening varchar(50) notnull
+  pemilik_rekening varchar(255) notnull
+  status StatusPengajuanUsaha notnull
+  approved_at timestamp
+  jatuh_tempo timestamp
+}
+
+table Payment {
+  id bigint pk inc notnull
+
+  bukti_pembayaran_url varchar(255) notnull
+  created_at timestamp notnull
+  verified_at timestamp
+}
+
+table JatuhTempo {
+  id bigint pk inc notnull
+
+  jatuh_tempo timestamp notnull
+}
+// END:b0b356b8-b23d-482c-9b42-f0991c8909d5
+// START:23fae711-2a8b-47ee-8c90-20ecfddb59d2
+api get /latest-messages {
+  description Ambil seluruh daftar pesan terakhir. Gunakan limit/offset.
+  headers {
+    authorization string required
+  }
+  query {
+    limit number
+    offset number
+  }
+  return array schema.MessageWithAttachments required
+}
+
+api get /message/:public_hash {
+  description Ambil percakapan dari pengguna (public_hash). Tambahkan parameter opsional "ID pesan terakhir" untuk mengambil hanya beberapa pesan terakhir.
+  headers {
+    authorization string required
+  }
+  path {
+    public_hash string required
+  }
+  query {
+    limit number
+    offset number
+    latest_message_id number
+  }
+  return schema RoomMessagesData {
+    messages array schema.MessageWithAttachments required
+    user table.User required
+  } required
+}
+
+api get /message/:public_hash/find {
+  description Cari pesan berdasarkan query dan filter.
+  headers {
+    authorization string required
+  }
+  query {
+    q string
+  }
+  return array schema.MessageWithAttachments required
+}
+
+api post /message/:public_hash/send {
+  description Kirim pesan ke pengguna (public_hash). Update data pesan terakhir.
+  headers {
+    authorization string required
+  }
+  path {
+    public_hash string required
+  }
+  body {
+    data schema.MessagePayload required
+  }
+  return schema.SendMessageResponse required
+}
+
+// END:23fae711-2a8b-47ee-8c90-20ecfddb59d2
+// START:41d113e0-97f2-475b-90c5-0a09566b81d4
+schema PostingKindVideo {
+  video_url string required
+  caption string
+}
+
+schema PostingKindPlainText {
+  text string required
+}
+
+schema PostingKindImageGIF {
+  image_url string required
+  caption string
+}
+
+schema PostingKindFile {
+  file_url string required
+  caption string
+}
+
+schema PostingKindAudio {
+  audio_url string required
+  caption string
+}
+
+schema PostingKindImageStatic {
+  image_url string required
+  caption string
+}
+
+schema PostingKindSeelingProductImage {
+  image_url string required
+  caption string
+}
+
+schema PostingKindSellingProduct {
+  id_product_category number required
+  name string required
+  price number required
+  description string
+  is_new_product boolean required
+  location string required
+  quantity number required
+  images array schema.PostingKindSeelingProductImage required
+}
+
+schema PostingKindPoolOption {
+  id number
+  option string required
+}
+
+schema PostingKindPool {
+  question string required
+  list_option array schema.PostingKindPoolOption required
+}
+
+schema PostingKindJobVacancyCompany {
+  name string required
+  logo string required
+  description string
+  address string
+}
+
+schema PostingKindJobVacancy {
+  is_create_new_company boolean required
+  id_company number
+  company_data schema.PostingKindJobVacancyCompany
+  position string required
+  location string required
+  type string required
+  description string
+  salary string
+  list_job_description array string required
+  list_job_qualification array string required
+}
+
+schema PostingPayload {
+  type string required
+  data_video schema.PostingKindVideo
+  data_plain_text schema.PostingKindPlainText
+  data_image_gif schema.PostingKindImageGIF
+  data_file schema.PostingKindFile
+  data_audio schema.PostingKindAudio
+  data_image_static schema.PostingKindImageStatic
+  data_selling_product schema.PostingKindSellingProduct
+  data_pool schema.PostingKindPool
+  data_job_vacancy schema.PostingKindJobVacancy
+}
+
+// END:41d113e0-97f2-475b-90c5-0a09566b81d4
+// START:e87a0ab4-b09f-40f7-8f96-ec544b22bd01
+table Provinsi {
+  id bigint pk inc notnull
+  kode varchar
+  nama varchar(255) notnull
+}
+
+table KotaKabupaten {
+  id bigint pk inc notnull
+  id_provinsi Provinsi.id notnull
+  kode varchar
+  nama varchar(255) notnull
+}
+
+table Kecamatan {
+  id bigint pk inc notnull
+  id_provinsi Provinsi.id notnull
+  id_kota_kabupaten KotaKabupaten.id notnull
+  kode varchar
+  nama varchar(255) notnull
+}
+
+table DesaKelurahan {
+  id bigint pk inc notnull
+  id_kecamatan Kecamatan.id notnull
+  id_provinsi Provinsi.id notnull
+  id_kota_kabupaten KotaKabupaten.id notnull
+  kode varchar
+  kodepos varchar
+  nama varchar(255) notnull
+}
+
+// END:e87a0ab4-b09f-40f7-8f96-ec544b22bd01
+// START:82251f64-1176-4f83-8e90-5c7044c34f47
+api get /posting {
+  description Ambil data posting, gunakan limit & offset
+  headers {
+    authorization string required
+  }
+  query {
+    type string
+    limit number
+    offset number
+  }
+  return schema PostingResult {
+    total number required
+    data array schema.PostingFullData required
+  } required
+}
+
+api post /posting {
+  description Buat posting baru
+  headers {
+    authorization string required
+  }
+  body {
+    data schema.PostingPayload required
+  }
+  return schema.PostingFullData required
+}
+
+api get /posting/:hash {
+  description Ambil data posting spesifik berdasarkan hash
+  headers {
+    authorization string required
+  }
+  path {
+    hash string required
+  }
+  return schema.PostingFullData required
+}
+
+api delete /posting/:hash {
+  description Hapus data posting spesifik berdasarkan hash (soft delete)
+  headers {
+    authorization string required
+  }
+  path {
+    hash string required
+  }
+  return boolean required
+}
+
+api post /posting/:hash/comment {
+  description Berikan komentar pada posting
+  headers {
+    authorization string required
+  }
+  path {
+    hash string required
+  }
+  body {
+    data schema CommentPayload {
+      id_parent_comment number
+      content string required
+    } required
+  }
+  return table.Comment required
+}
+
+api get /posting/:hash/comments {
+  description Ambil data komentar dari posting spesifik berdasarkan hash
+  headers {
+    authorization string required
+  }
+  path {
+    hash string required
+  }
+  query {
+    limit number
+    offset number
+  }
+  return schema PostingCommentsResult {
+    total number required
+    data array table.Comment required
+  } required
+}
+
+api post /posting/:hash/vote {
+  description Berikan up/down vote pada posting
+  headers {
+    authorization string required
+  }
+  path {
+    hash string required
+  }
+  body {
+    type string required
+  }
+  return schema.TotalUpDownVote required
+}
+
+api get /posting/:hash/votes {
+  description Ambil data total vote dari posting spesifik berdasarkan hash
+  headers {
+    authorization string required
+  }
+  path {
+    hash string required
+  }
+  return schema.TotalUpDownVote required
+}
+
+api get /profile/:username/posting {
+  description Ambil data posting pengguna
+  headers {
+    authorization string required
+  }
+  path {
+    username string required
+  }
+  query {
+    limit number
+    offset number
+  }
+  return schema UserPostingResult {
+    total number required
+    data array schema.PostingFullData required
+  } required
+}
+
+// END:82251f64-1176-4f83-8e90-5c7044c34f47
+// START:ac6e974b-0226-48e6-bf58-b869970539c7
+schema TotalUpDownVote {
+  upvote number required
+  downvote number required
+}
+
+// END:ac6e974b-0226-48e6-bf58-b869970539c7
+// START:f1b9f4d8-5f50-45a6-a205-a43968cf74c8
+table Admin {
+  id bigint pk inc notnull
+
+}
+// END:f1b9f4d8-5f50-45a6-a205-a43968cf74c8
+// START:d82a096b-b104-4be3-992c-fbe3593298d3
+schema SearchFriendResponse {
+  already_friend boolean required
+  user table.User required
+}
+
+// END:d82a096b-b104-4be3-992c-fbe3593298d3
+// START:0b52f60f-e3ac-4af3-9244-7f76a107fff3
+schema AuthResponse {
+  user table.User required
+  token string required
+}
+
+// END:0b52f60f-e3ac-4af3-9244-7f76a107fff3
+// START:54e786b1-fe58-4d51-9faf-fc1038a05426
+api post /login {
+  description Login dengan nomor hp
+  body {
+    data schema LoginPayload {
+      nomor_hp string required
+    } required
+  }
+  return schema.OTPHashResponse required
+}
+
+api post /forgot-password {
+  description Kirim email lupa password jika email ditemukan, abaikan jika email tidak ditemukan.
+  body {
+    email string required
+  }
+  return boolean required
+}
+
+api post /onboarding/accept-snk {
+  description Finalisasi onboarding, setuju SnK
+  headers {
+    authorization string required
+  }
+  body {
+    __nobody string
+  }
+  return boolean required
+}
+
+api post /onboarding/data-diri {
+  description Submit data onboarding data diri
+  headers {
+    authorization string required
+  }
+  body {
+    data schema OnboardingDataDiriPayload {
+      fullname string required
+      email string required
+      tanggal_lahir string required
+      domisili string
+    } required
+  }
+  return boolean required
+}
+
+api post /onboarding/photo-username {
+  description Submit data onboarding photo & username
+  headers {
+    authorization string required
+  }
+  body {
+    data schema OnboardingPhotoUsernamePayload {
+      username string required
+      profile_picture_url string
+    } required
+  }
+  return boolean required
+}
+
+api post /register {
+  description Daftar dengan nomor hp
+  body {
+    data schema RegisterPayload {
+      nomor_hp string required
+    } required
+  }
+  return schema.OTPHashResponse required
+}
+
+api post /reset-password/:token {
+  description Reset password berdasarkan token dengan password baru
+  path {
+    token string required
+  }
+  body {
+    data schema ResetPasswordPayload {
+      password string required
+      confirm_password string required
+    } required
+  }
+  return boolean required
+}
+
+api get /reset-password/:token/is-valid {
+  description Periksa apakah token reset password valid
+  path {
+    token string required
+  }
+  return boolean required
+}
+
+api post /verify-email/:token {
+  description Verifikasi email berdasarkan token pada tautan verifikasi email
+  path {
+    token string required
+  }
+  return schema.AuthResponse required
+}
+
+api post /verify-otp {
+  description Verifikasi kode OTP
+  body {
+    data schema OTPSubmissionPayload {
+      hash string required
+      type string required
+      code string required
+    } required
+  }
+  return schema.AuthResponse required
+}
+
+// END:54e786b1-fe58-4d51-9faf-fc1038a05426
+// START:791b6ae2-8219-44eb-8a91-9d9ce3d1c0e0
+api get /daftar-jadab {
+  description Lihat status pendaftaran Jadab terakhir
+  headers {
+    authorization string required
+  }
+  return table.RegistrasiJadab required
+}
+
+api post /daftar-jadab/1 {
+  description Daftar peserta Jadab tahap 1
+  headers {
+    authorization string required
+  }
+  body {
+    data schema FormPendaftaranJadab1 {
+      nama_lengkap string required
+      nomor_ktp string required
+      tempat_lahir string required
+      tanggal_lahir string required
+      jenis_kelamin string required
+    } required
+  }
+  return table.RegistrasiJadab required
+}
+
+api post /daftar-jadab/2 {
+  description Daftar peserta Jadab tahap 2
+  headers {
+    authorization string required
+  }
+  body {
+    data schema FormPendaftaranJadab2 {
+      id_provinsi number required
+      id_kota_kabupaten number required
+      id_kecamatan number required
+      id_desa_keluarahan number required
+      kodepos string required
+      rt string required
+      rw string required
+    } required
+  }
+  return table.RegistrasiJadab required
+}
+
+api post /daftar-jadab/3 {
+  description Daftar peserta Jadab tahap 3
+  headers {
+    authorization string required
+  }
+  body {
+    data schema FormPendaftaranJadab3 {
+      nomor_telepon string required
+      email string required
+      pekerjaan string required
+      url_foto_ktp string required
+    } required
+  }
+  return table.RegistrasiJadab required
+}
+
+api post /jadab/daftar-usaha {
+  headers {
+    authorization string required
+  }
+  body {
+    data schema FormPendaftaranUsaha {
+      nama_usaha string required
+      bidang string required
+      alamat string required
+      deskripsi string required
+      foto_usaha_url string required
+      jumlah_modal number required
+      rencana string required
+      estimasi_untung number required
+      bagi_hasil number required
+      aset string required
+      kredit string required
+      rekomendasi number
+      nomor_rekening string required
+      pemilik_rekening string required
+    } required
+  }
+  return table.JadabBussiness required
+}
+
+api get /jadab/daftar-usaha {
+  headers {
+    authorization string required
+  }
+  query {
+    page string required
+  }
+  return schema.DaftarUsaha required
+}
+
+api get /jadab/detail-usaha/:id {
+  headers {
+    authorization string required
+  }
+  path {
+    id number required
+  }
+  return table.JadabBussiness required
+}
+
+api post /jadab/bayar-bagi-hasil {
+  headers {
+      authorization string required
+  }
+  body {
+    bussiness_id number required
+    bukti_pembayaran_url string required
+  }
+  return table.Payment required
+}
+
+api get /jadab/bagi-hasil/:id {
+  headers {
+    authorization string required
+  }
+  path {
+    bussiness_id number required
+  }
+  return schema.DaftarPayment required
+}
+
+
+
+
+
+
+
+
+
+
+
+// END:791b6ae2-8219-44eb-8a91-9d9ce3d1c0e0
+// START:bd8b040b-6c45-4e33-b705-d6aea7f86299
+api get /my-friends {
+  description Get my friends list
+  headers {
+    authorization string required
+  }
+  query {
+    limit number
+    offset number
+    q string
+  }
+  return schema MyFriendResult {
+    total number required
+    data array table.User required
+  } required
+}
+
+api get /profile {
+  description Ambil data profile berdasarkan token jwt "wi"
+  headers {
+    authorization string required
+  }
+  return schema ProfileData {
+    user table.User required
+    verified boolean required
+    total_unread_notification number required
+    total_unread_message number required
+  } required
+}
+
+api get /profile/:username {
+  description Ambil detail data profil pengguna berdasarkan username
+  headers {
+    authorization string required
+  }
+  path {
+    username string required
+  }
+  return table.User required
+}
+
+api post /profile/update {
+  description Ubah data profil
+  headers {
+    authorization string required
+  }
+  body {
+    data schema UpdateProfilePayload {
+      profile_picture_url string
+      fullname string required
+      email string required
+      tanggal_lahir string required
+      domisili string
+    } required
+  }
+  return table.User required
+}
+
+api get /search {
+  description Search user by query
+  headers {
+    authorization string required
+  }
+  query {
+    q string required
+  }
+  return array schema.SearchFriendResponse required
+}
+
+api get /search/by-id-user {
+  description Cari pengguna berdasarkan ID User
+  headers {
+    authorization string required
+  }
+  query {
+    username string required
+  }
+  return schema.SearchFriendResponse required
+}
+
+api get /search/by-phone-number {
+  description Cari pengguna berdasarkan Nomor HP
+  headers {
+    authorization string required
+  }
+  query {
+    phone_number string required
+  }
+  return schema.SearchFriendResponse required
+}
+
+api post /user/:public_id/add-friend {
+  description Tambahkan pengguna sebagai teman
+  headers {
+    authorization string required
+  }
+  path {
+    public_id string required
+  }
+  body {
+    __nobody string
+  }
+  return schema.SearchFriendResponse required
+}
+
+api get /username/:username/check {
+  description Cek ketersediaan username
+  headers {
+    authorization string required
+  }
+  path {
+    username string required
+  }
+  return boolean required
+}
+
+// END:bd8b040b-6c45-4e33-b705-d6aea7f86299
+// START:2d409b9c-370e-406b-9595-4eb3b89ceadb
+table User {
+  id bigint pk inc notnull
+  name varchar(255) notnull
+  email varchar(255) notnull
+  username varchar(255)
+  public_hash varchar(255) notnull
+  phone_number varchar(255)
+  email_verification_token varchar(255)
+  email_forgot_password_token varchar(255)
+  email_verified_at timestamp
+  created_at timestamp notnull
+  date_of_birth date
+  address text
+  last_socket_id varchar(255)
+  fcm_token varchar(255)
+  profile_picture_url varchar(255)
+  profile_banner_url varchar(255)
+  accept_snk_at timestamp
+
+
+  mp_bank_name varchar(255)
+  mp_bank_acc_name varchar(255)
+  mp_bank_acc_number varchar(255)
+  mp_bank_acc_branch varchar(255)
+}
+
+table FriendList {
+  id bigint pk inc notnull
+
+
+  created_at timestamp notnull
+}
+
+table BlockList {
+  id bigint pk inc notnull
+
+
+  created_at timestamp notnull
+
+
+
+
+
+
+  unblocked_at timestamp
+}
+
+enum OTPType {
+  LOGIN
+  REGISTER
+  OTHER
+}
+
+table OTP {
+  id bigint pk inc notnull
+
+  hash varchar(100) notnull
+  code varchar(6) notnull
+  type OTPType notnull
+  verified_at timestamp
+  sent_at timestamp notnull
+}
+
+// END:2d409b9c-370e-406b-9595-4eb3b89ceadb
+// START:d97a69c2-3845-4374-a159-d9bd948e4b1c
+api post /admin/login {
+  body {
+    data schema AdminPayload {
+      nomor_hp string required
+    } required
+  }
+  return schema.OTPHashResponse required
+}
+
+
+api get /admin/daftar-usaha {
+  headers {
+    authorization string required
+  }
+  return schema.DaftarUsaha required
+}
+
+api get /admin/detail-usaha/:id {
+  headers {
+    authorization string required
+  }
+  path {
+    id number required
+  }
+  return table.JadabBussiness required
+}
+
+api post /admin/pengajuan-modal/approved/:id {
+  headers {
+    authorization string required
+  }
+  path {
+    id number required
+  }
+  return table.JadabBussiness required
+}
+
+api post /admin/pengajuan-modal/reject/:id {
+  headers {
+    authorization string required
+  }
+  path {
+    id number required
+  }
+  return table.JadabBussiness required
+}
+// END:d97a69c2-3845-4374-a159-d9bd948e4b1c
+// START:576ed0a9-1189-45dd-a068-356d731d662b
+table Community {
+  id bigint pk inc notnull
+
+  public_identifier varchar(255) notnull
+  total_member bigint notnull default=0
+  name varchar(255) notnull
+  logo varchar(255) notnull
+  created_at timestamp notnull
+  deleted_at timestamp
+}
+
+table CommunityTopic {
+  id bigint pk inc notnull
+
+  name varchar(255) notnull
+  icon_url varchar(255) notnull
+  color varchar(50) notnull
+  created_at timestamp notnull
+  deleted_at timestamp
+}
+
+table CommunityMember {
+  id bigint pk inc notnull
+
+
+  is_admin boolean notnull default=false
+  approved boolean notnull default=false
+  join_request_at timestamp notnull
+  join_approved_at timestamp
+  leave_at timestamp
+}
+
+table CommunityTopicMember {
+  id bigint pk inc notnull
+
+
+  created_at timestamp notnull
+  deleted_at timestamp
+}
+
+// END:576ed0a9-1189-45dd-a068-356d731d662b
+// START:ba57f348-8aec-463a-98e2-9abc73399242
+schema PostingFullData {
+  posting table.Posting required
+  list_file array table.PostingFile required
+  list_sell_product array schema.PostingProductWithImages required
+  list_plain_text array table.PostingPlainText required
+  list_image_static array table.PostingImageStatic required
+  list_image_gif array table.PostingImageGIF required
+  list_audio array table.PostingAudio required
+  list_video array table.PostingVideo required
+  list_pool array schema.PostingPoolWithOptions required
+  list_job array schema.PostingJobWithDetails required
+
+  list_vote array table.Vote required
+  list_comment array table.Comment required
+}
+
+schema PostingVotesComments {
+  posting table.Posting required
+  list_vote array table.Vote required
+  list_comment array table.Comment required
+}
+
+schema PostingProductWithImages {
+  posting_product table.PostingSellProduct required
+  list_images array table.ProductImage required
+}
+
+schema PostingPoolWithOptions {
+  posting_pool table.PostingPool required
+  list_options array table.PostingPoolOption required
+}
+
+schema PostingJobWithDetails {
+  posting_job table.PostingJobVacancy required
+  list_descriptions array table.JobDescription required
+  list_qualifications array table.JobQualification required
+}
+
+// END:ba57f348-8aec-463a-98e2-9abc73399242

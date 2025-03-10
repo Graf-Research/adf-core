@@ -158,16 +158,17 @@ api GET /event/:id {
 
 async function main(filename: string) {
   try {
-    const result: SAResult = await parseFromFileItems([{
-      filename: 'Model/Main',
-      content: adf_1
-    }, {
-      filename: 'API/Admin/Event',
-      content: adf_3
-    }, {
-      filename: 'API/User/Event',
-      content: adf_2
-    }]);
+    // const result: SAResult = await parseFromFileItems([{
+    //   filename: 'Model/Main',
+    //   content: adf_1
+    // }, {
+    //   filename: 'API/Admin/Event',
+    //   content: adf_3
+    // }, {
+    //   filename: 'API/User/Event',
+    //   content: adf_2
+    // }]);
+    const result: SAResult = await parse('./sample.adf');
     console.log(result);
     // console.log(JSONSpecificationToADF(result));
   } catch (parse_error: any) {

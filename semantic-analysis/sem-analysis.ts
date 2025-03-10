@@ -9,6 +9,8 @@ import { analyzeAPI } from "./api/analyze-api";
 import { API } from "./api/api";
 import { analyzeImport } from "./import/analyze-import";
 import { AnalysisConfig } from "./sem-analysis.interface";
+import { AST_API } from "../ast/types/api";
+import { AST_Schema } from "../ast/types/schema";
 
 export interface SAResult {
   list_enum: Model.Enum[]
@@ -31,8 +33,11 @@ export async function analyze(param: AnalyzeParams): Promise<SAResult> {
   const list_ast_enum = param.list_ast.filter(e => e.type === 'enum');
   const list_ast_table = param.list_ast.filter(e => e.type === 'table');
   const list_ast_flow = param.list_ast.filter(e => e.type === 'flow');
-  const list_ast_schema = param.list_ast.filter(e => e.type === 'schema');
   const list_ast_api = param.list_ast.filter(e => e.type === 'api');
+  const list_ast_schema = [
+    ...param.list_ast.filter(e => e.type === 'schema'),
+    ...getASTSchemaFromAPI(list_ast_api)
+  ];
   const list_ast_import = param.list_ast.filter(e => e.type === 'import');
 
   const result_import = await analyzeImport({
@@ -57,6 +62,8 @@ export async function analyze(param: AnalyzeParams): Promise<SAResult> {
     config: param.config,
   });
   const result_schema = analyzeSchema({
+    list_ast_enum,
+    list_ast_table,
     list_ast_schema, 
     list_existing_enum: result_enum_table.list_enum,
     list_existing_table: result_enum_table.list_table,
@@ -65,12 +72,21 @@ export async function analyze(param: AnalyzeParams): Promise<SAResult> {
     filename: param.filename
   });
   const result_api = analyzeAPI({
+    list_ast_enum,
+    list_ast_table,
+    list_ast_schema, 
     list_ast_api, 
     list_existing_schema: result_schema, 
     list_existing_api: result_import.list_api,
     list_existing_enum: result_enum_table.list_enum,
     list_existing_table: result_enum_table.list_table,
-    config: param.config,
+    config: {
+      ...param.config,
+      api: {
+        ...param.config?.api,
+        allInlineSchemaAlreadyDefined: true
+      }
+    },
     filename: param.filename
   });
 
@@ -82,4 +98,31 @@ export async function analyze(param: AnalyzeParams): Promise<SAResult> {
     list_api: result_api.list_api,
     filename: param.filename
   };
+}
+
+function getASTSchemaFromAPI(list_ast_api: AST_API.API[]): AST_Schema.Schema[] {
+  const out: AST_Schema.Schema[] = [];
+  for (const ast_api of list_ast_api) {
+    for (const item of ast_api.items) {
+      switch (item.key) {
+        case "description":
+        case "headers":
+        case "query":
+        case "path":
+          continue;
+        case "body":
+          for (const body_item of item.data) {
+            if (body_item.type.type === 'new-schema') {
+              out.push(body_item.type.schema);
+            }
+          }
+          break;
+        case "return":
+          if (item.type.type === 'new-schema') {
+            out.push(item.type.schema)
+          }
+      }
+    }
+  }
+  return out;
 }

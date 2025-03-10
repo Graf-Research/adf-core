@@ -4,6 +4,8 @@ import { Schema } from "../schema/schema";
 import { API } from "./api";
 import { Model } from "../model/model";
 import { AnalysisConfig } from "../sem-analysis.interface";
+import { AST_Schema } from "../../ast/types/schema";
+import { AST_Model } from "../../ast/types/model";
 
 export interface AnalyzeAPIResult {
   list_api: API.API[]
@@ -11,6 +13,9 @@ export interface AnalyzeAPIResult {
 }
 
 export interface AnalyzeAPIParams {
+  list_ast_enum: AST_Model.Enum[]
+  list_ast_table: AST_Model.Table[]
+  list_ast_schema: AST_Schema.Schema[]
   list_ast_api: AST_API.API[]
   list_existing_table: Model.Table[]
   list_existing_enum: Model.Enum[]
@@ -39,7 +44,18 @@ export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {
     if (!return_item) {
       throw new Error(`line ${ast_api.method.line} api '${ast_api.method.text} ${ast_api.path.text}' return value missing`);
     }
-    const _return = extractReturn(return_item, list_schema, param.list_existing_enum, param.list_existing_table, param.filename, param.config);
+    const _return = extractReturn(
+      param.list_ast_enum,
+      param.list_ast_table,
+      param.list_ast_schema,
+      param.list_ast_api,
+      return_item,
+      list_schema,
+      param.list_existing_enum,
+      param.list_existing_table,
+      param.filename,
+      param.config
+    );
 
     const description = ast_api.items.find(item => item.key === 'description');
     const body_item = ast_api.items.find(item => item.key === 'body');
@@ -47,10 +63,54 @@ export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {
     const path_item = ast_api.items.find(item => item.key === 'path');
     const query_item = ast_api.items.find(item => item.key === 'query');
 
-    const _headers = (headers_item && !param.config?.api?.schemaOnly) ? extractHeaders(headers_item, list_schema, param.list_existing_enum, param.list_existing_table, param.filename, param.config) : undefined;
-    const _path = (path_item && !param.config?.api?.schemaOnly) ? extractPaths(path_item, list_schema, param.list_existing_enum, param.list_existing_table, param.filename, param.config) : undefined;
-    const _query = (query_item && !param.config?.api?.schemaOnly) ? extractQueries(query_item, list_schema, param.list_existing_enum, param.list_existing_table, param.filename, param.config) : undefined;
-    const _body = body_item ? extractBody(body_item, list_schema, param.list_existing_enum, param.list_existing_table, param.filename, param.config) : undefined;
+    const _headers = (headers_item && !param.config?.api?.schemaOnly) ? extractHeaders(
+      param.list_ast_enum,
+      param.list_ast_table,
+      param.list_ast_schema,
+      param.list_ast_api,
+      headers_item,
+      list_schema,
+      param.list_existing_enum,
+      param.list_existing_table,
+      param.filename,
+      param.config
+    ) : undefined;
+    const _path = (path_item && !param.config?.api?.schemaOnly) ? extractPaths(
+      param.list_ast_enum,
+      param.list_ast_table,
+      param.list_ast_schema,
+      param.list_ast_api,
+      path_item,
+      list_schema,
+      param.list_existing_enum,
+      param.list_existing_table,
+      param.filename,
+      param.config
+    ) : undefined;
+    const _query = (query_item && !param.config?.api?.schemaOnly) ? extractQueries(
+      param.list_ast_enum,
+      param.list_ast_table,
+      param.list_ast_schema,
+      param.list_ast_api,
+      query_item,
+      list_schema,
+      param.list_existing_enum,
+      param.list_existing_table,
+      param.filename,
+      param.config
+    ) : undefined;
+    const _body = body_item ? extractBody(
+      param.list_ast_enum,
+      param.list_ast_table,
+      param.list_ast_schema,
+      param.list_ast_api,
+      body_item,
+      list_schema,
+      param.list_existing_enum,
+      param.list_existing_table,
+      param.filename,
+      param.config
+    ) : undefined;
 
     let api: API.API;
     switch (method) {
@@ -215,6 +275,10 @@ export function analyzeAPI(param: AnalyzeAPIParams): AnalyzeAPIResult {
 }
 
 function extractHeaders(
+  list_ast_enum: AST_Model.Enum[],
+  list_ast_table: AST_Model.Table[],
+  list_ast_schema: AST_Schema.Schema[],
+  list_ast_api: AST_API.API[],
   ast_api_header: AST_API.APIItemHeaders, 
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
@@ -227,7 +291,17 @@ function extractHeaders(
     if (header.array) {
       throw new Error(`line ${header.key.line} col ${header.key.col} schema header '${header.key.text}' attribute cannot be an array.`);
     }
-    const generated_item_type = generateSchemaItemType('api', header.type, [], list_existing_schema, list_existing_enum, list_existing_table, filename, config);
+    const generated_item_type = generateSchemaItemType(
+      'api',
+      header.type,
+      list_ast_enum,
+      list_ast_table,
+      list_ast_schema,
+      list_existing_schema,
+      list_existing_enum,
+      list_existing_table,
+      filename,
+      config);
     if (generated_item_type.type.type !== 'native') {
       throw new Error(`line ${header.key.line} col ${header.key.col} schema header '${header.key.text}' attribute only accepting native types only.`)
     }
@@ -241,6 +315,10 @@ function extractHeaders(
 }
 
 function extractPaths(
+  list_ast_enum: AST_Model.Enum[],
+  list_ast_table: AST_Model.Table[],
+  list_ast_schema: AST_Schema.Schema[],
+  list_ast_api: AST_API.API[],
   ast_api_path: AST_API.APIItemPath, 
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
@@ -256,7 +334,18 @@ function extractPaths(
     if (!path.required) {
       throw new Error(`line ${path.key.line} col ${path.key.col} schema path '${path.key.text}' must have 'required' attribute.`);
     }
-    const generated_item_type = generateSchemaItemType('api', path.type, [], list_existing_schema, list_existing_enum, list_existing_table, filename, config);
+    const generated_item_type = generateSchemaItemType(
+      'api',
+      path.type,
+      list_ast_enum,
+      list_ast_table,
+      list_ast_schema,
+      list_existing_schema,
+      list_existing_enum,
+      list_existing_table,
+      filename,
+      config
+    );
     if (generated_item_type.type.type !== 'native') {
       throw new Error(`line ${path.key.line} col ${path.key.col} schema path '${path.key.text}' attribute only accepting native types only.`)
     }
@@ -269,6 +358,10 @@ function extractPaths(
 }
 
 function extractQueries(
+  list_ast_enum: AST_Model.Enum[],
+  list_ast_table: AST_Model.Table[],
+  list_ast_schema: AST_Schema.Schema[],
+  list_ast_api: AST_API.API[],
   ast_api_query: AST_API.APIItemQuery, 
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
@@ -278,7 +371,18 @@ function extractQueries(
 ): API.Query[] {
   const data: API.Query[] = [];
   for (const query of ast_api_query.data) {
-    const generated_item_type = generateSchemaItemType('api', query.type, [], list_existing_schema, list_existing_enum, list_existing_table, filename, config);
+    const generated_item_type = generateSchemaItemType(
+      'api',
+      query.type,
+      list_ast_enum,
+      list_ast_table,
+      list_ast_schema,
+      list_existing_schema,
+      list_existing_enum,
+      list_existing_table,
+      filename,
+      config
+    );
     if (generated_item_type.type.type !== 'native') {
       throw new Error(`line ${query.key.line} col ${query.key.col} schema query '${query.key.text}' attribute only accepting native types only.`)
     }
@@ -298,6 +402,10 @@ interface ExtractBodyResult {
 }
 
 function extractBody(
+  list_ast_enum: AST_Model.Enum[],
+  list_ast_table: AST_Model.Table[],
+  list_ast_schema: AST_Schema.Schema[],
+  list_ast_api: AST_API.API[],
   ast_api_body: AST_API.APIItemBody, 
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
@@ -309,7 +417,18 @@ function extractBody(
   const list_new_schema: Schema.Schema[] = [];
 
   for (const body of ast_api_body.data) {
-    const generated_item_type = generateSchemaItemType('api', body.type, [], list_existing_schema, list_existing_enum, list_existing_table, filename, config);
+    const generated_item_type = generateSchemaItemType(
+      'api',
+      body.type,
+      list_ast_enum,
+      list_ast_table,
+      list_ast_schema,
+      list_existing_schema,
+      list_existing_enum,
+      list_existing_table,
+      filename,
+      config
+    );
     data.push({
       key: body.key.text,
       type: generated_item_type.type,
@@ -331,6 +450,10 @@ interface ExtractReturnResult {
 }
 
 function extractReturn(
+  list_ast_enum: AST_Model.Enum[],
+  list_ast_table: AST_Model.Table[],
+  list_ast_schema: AST_Schema.Schema[],
+  list_ast_api: AST_API.API[],
   ast_api_return: AST_API.APIItemReturn, 
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
@@ -338,7 +461,18 @@ function extractReturn(
   filename?: string,
   config?: AnalysisConfig
 ): ExtractReturnResult {
-  const generated_item_type = generateSchemaItemType('api', ast_api_return.type, [], list_existing_schema, list_existing_enum, list_existing_table, filename, config);
+  const generated_item_type = generateSchemaItemType(
+    'api',
+    ast_api_return.type,
+    list_ast_enum,
+    list_ast_table,
+    list_ast_schema,
+    list_existing_schema,
+    list_existing_enum,
+    list_existing_table,
+    filename,
+    config
+  );
   return {
     data: {
       type: generated_item_type.type,

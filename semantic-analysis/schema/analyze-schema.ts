@@ -5,6 +5,8 @@ import { AnalysisConfig } from "../sem-analysis.interface";
 import { Schema } from "./schema";
 
 export interface AnalyzeSchemaParams {
+  list_ast_enum: AST_Model.Enum[]
+  list_ast_table: AST_Model.Table[]
   list_ast_schema: AST_Schema.Schema[]
   list_existing_table: Model.Table[]
   list_existing_enum: Model.Enum[]
@@ -29,6 +31,8 @@ export function analyzeSchema(param: AnalyzeSchemaParams): Schema.Schema[] {
     
     const create_schema_from_ast_result: CreateSchemaFromASTResult = createSchemaFromAST(
       ast_schema, 
+      param.list_ast_enum,
+      param.list_ast_table,
       param.list_ast_schema, 
       list_schema, 
       param.list_existing_enum,
@@ -52,6 +56,8 @@ interface CreateSchemaFromASTResult {
 
 function createSchemaFromAST(
   ast_schema: AST_Schema.Schema, 
+  list_ast_enum: AST_Model.Enum[], 
+  list_ast_table: AST_Model.Table[], 
   list_ast_schema: AST_Schema.Schema[], 
   list_existing_schema: Schema.Schema[], 
   list_existing_enum: Model.Enum[],
@@ -61,7 +67,17 @@ function createSchemaFromAST(
 ): CreateSchemaFromASTResult {
   // TODO: check schema name duplicate
 
-  const schema_items_result: SchemaItemsResult = getSchemaItems(ast_schema.items, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table, filename, config);
+  const schema_items_result: SchemaItemsResult = getSchemaItems(
+    ast_schema.items,
+    list_ast_enum,
+    list_ast_table, 
+    list_ast_schema, 
+    list_existing_schema, 
+    list_existing_enum, 
+    list_existing_table, 
+    filename, 
+    config
+  );
   const existing_schema_index: number = list_existing_schema.findIndex((s: Schema.Schema) => s.name === ast_schema.name.text);
   if (ast_schema.extends) {
     if (existing_schema_index === -1) {
@@ -111,6 +127,8 @@ export interface SchemaItemsResult {
 
 export function getSchemaItems(
   items: AST_Schema.Item[], 
+  list_ast_enum: AST_Model.Enum[], 
+  list_ast_table: AST_Model.Table[], 
   list_ast_schema: AST_Schema.Schema[], 
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
@@ -122,7 +140,18 @@ export function getSchemaItems(
   const list_item: Schema.Item[] = [];
 
   for (const prop of items) {
-    const generated_item_type = generateSchemaItemType('schema', prop.type, list_ast_schema, list_existing_schema, list_existing_enum, list_existing_table, filename, config);
+    const generated_item_type = generateSchemaItemType(
+      'schema', 
+      prop.type, 
+      list_ast_enum,
+      list_ast_table,
+      list_ast_schema, 
+      list_existing_schema, 
+      list_existing_enum, 
+      list_existing_table, 
+      filename, 
+      config
+    );
     list_new_schema.push(...generated_item_type.list_new_schema);
     list_item.push({
       key: prop.key.text,
@@ -146,6 +175,8 @@ export interface GetSchemaItemTypeResult {
 export function generateSchemaItemType(
   called_from: 'api' | 'schema',
   prop: AST_Schema.ItemType, 
+  list_ast_enum: AST_Model.Enum[], 
+  list_ast_table: AST_Model.Table[], 
   list_ast_schema: AST_Schema.Schema[], 
   list_existing_schema: Schema.Schema[],
   list_existing_enum: Model.Enum[],
@@ -198,7 +229,7 @@ export function generateSchemaItemType(
           };
         case 'schema':
           if (!config?.schema?.ignoreMissingSchema) {
-            const schema_index = list_existing_schema.findIndex((t: Schema.Schema) => t.name == ste_value);
+            const schema_index = list_ast_schema.findIndex((t: AST_Schema.Schema) => t.name.value == ste_value);
             if (schema_index === -1) {
               throw new Error(`line ${prop.name.line} col ${prop.name.col} schema '${ste_value}' not found`);
             }
@@ -228,6 +259,8 @@ export function generateSchemaItemType(
       }
       const create_schema_from_ast_result: CreateSchemaFromASTResult = createSchemaFromAST(
         prop.schema, 
+        list_ast_enum,
+        list_ast_table,
         list_ast_schema, 
         list_existing_schema,
         list_existing_enum,

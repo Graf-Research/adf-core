@@ -72,7 +72,13 @@ export async function analyze(param: AnalyzeParams): Promise<SAResult> {
     list_existing_enum: result_enum_table.list_enum,
     list_existing_table: result_enum_table.list_table,
     list_existing_schema: result_import.list_schema,
-    config: param.config,
+    config: {
+      ...param.config,
+      schema: {
+        ...param.config?.schema,
+        allInlineSchemaAlreadyDefined: true
+      }
+    },
     filename: param.filename,
   });
   const result_api = analyzeAPI({
@@ -87,6 +93,7 @@ export async function analyze(param: AnalyzeParams): Promise<SAResult> {
     config: {
       ...param.config,
       schema: {
+        ...param.config?.schema,
         allInlineSchemaAlreadyDefined: true
       }
     },

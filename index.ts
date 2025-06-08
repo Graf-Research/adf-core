@@ -1,5 +1,5 @@
 import { ast, AST_Item } from "./ast/ast";
-import { analyze, SAResult } from './semantic-analysis/sem-analysis';
+import { analyze, analyzeSync, SAResult } from './semantic-analysis/sem-analysis';
 import fs from 'fs';
 import axios from 'axios'
 import path from 'path'
@@ -65,8 +65,29 @@ export async function parse(uri: string, relative_path: string = '', current_res
   }
 }
 
-export async function parseString(code: string, current_result?: SAResult, config?: AnalysisConfig, filename?: string): Promise<SAResult> {
-  return await analyze({
+export function parseSync(uri: string, relative_path: string = '', current_result?: SAResult, config?: AnalysisConfig): SAResult {
+  const url_regex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}(\.[a-zA-Z0-9()]{1,6})?\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/;
+  
+  if (url_regex.test(uri)) {
+    throw new Error(`Synchronize parsing doesnt support url`);
+  } else {
+    const absolute_path = uri.startsWith('/') ? path.resolve(uri) : path.resolve(relative_path, uri);
+    try {
+      const code = fs.readFileSync(absolute_path, 'utf-8');
+      return analyzeSync({
+        list_ast: ast(code), 
+        relative_path: path.dirname(absolute_path), 
+        current_result, 
+        config
+      });
+    } catch (err: any) {
+      throw new Error(`from file: '${absolute_path}'\n${err.toString()}`);
+    }
+  }
+}
+
+export function parseString(code: string, current_result?: SAResult, config?: AnalysisConfig, filename?: string): SAResult {
+  return analyzeSync({
     list_ast: ast(code), 
     relative_path: '', 
     current_result, 
@@ -175,7 +196,6 @@ export async function parseFromFileItems(items: FileItem[], config?: AnalysisCon
     list_ast_table: lookup_source_list_ast_table,
     list_ast_schema: lookup_source_list_ast_schema,
   };
-  // console.log(lookup_source_list_ast_schema);
 
   // MODEL
   const group_ast_model_filename = _.groupBy(list_ast_models, x => x.filename);
@@ -197,7 +217,6 @@ export async function parseFromFileItems(items: FileItem[], config?: AnalysisCon
     }
   }
 
-  console.log('+++++++11111');
   // NON MODEL
   // take all schema out
   const group_ast_non_model_filename = _.groupBy(list_ast_non_models, x => x.filename);
@@ -220,14 +239,11 @@ export async function parseFromFileItems(items: FileItem[], config?: AnalysisCon
       });
       
       output.list_api = [];
-      // console.log(output)
     } catch (err: any) {
-      // console.log(list_items.map(x => x.ast_item));
       throw new Error(`${filename ? `[file: ${filename}]` : '[On This File]'} ${err.message}`);
     }
   }
 
-  console.log('+++++++22222');
   // NON MODEL
   // ignore schema, api use defined schema
   for (const filename of Object.keys(group_ast_non_model_filename)) {

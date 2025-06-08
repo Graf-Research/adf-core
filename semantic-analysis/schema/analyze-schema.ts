@@ -242,7 +242,6 @@ export function generateSchemaItemType(
           if (!config?.schema?.ignoreMissingSchema) {
             const schema_index = (config?.lookup_items?.list_ast_schema ?? list_ast_schema).findIndex((t: AST_Schema.Schema) => t.name.value == ste_value);
             if (schema_index === -1) {
-              console.log(config);
               throw new Error(`line ${prop.name.line} col ${prop.name.col} schema '${ste_value}' not found`);
             }
           }

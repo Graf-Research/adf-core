@@ -15,7 +15,6 @@ export function ast(code: string): AST_Item[] {
   // const lexer = moo.compile(require('../ast/grammar/lexer.js'));
   // console.log(Array.from(lexer.reset(code)).map(x => `${x.type} => ${x.text.trim()}`));
 
-  console.log(code);
   parser.feed(code.split('\n').map(x => {
     if (x.trim().startsWith('//')) {
       return '';

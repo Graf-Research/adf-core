@@ -6,9 +6,9 @@ if (!process.argv[2]) {
   throw new Error(`argv[2] cannot be empty`);
 }
 
-async function main(filename: string) {
+function main(filename: string) {
   try {
-    const result: SAResult = await parseString(
+    const result: SAResult = parseString(
       `
 api post /login {
   description Login dengan nomor hp
@@ -140,6 +140,5 @@ api post /verify-otp {
     console.error(parse_error)
   }
 };
-main(process.argv[2]);
-
+// main(process.argv[2]);
 

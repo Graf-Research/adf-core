@@ -1,12 +1,4 @@
-(function(root, factory) {
-  if (typeof define === 'function' && define.amd) {
-    define('moo', [], factory) /* global define */
-  } else if (typeof module === 'object' && module.exports) {
-    module.exports = factory()
-  } else {
-    root.moo = factory()
-  }
-}(this, function() {
+module.exports = (function() {
   'use strict';
 
   var hasOwnProperty = Object.prototype.hasOwnProperty
@@ -638,5 +630,5 @@
     fallback: Object.freeze({fallback: true}),
     keywords: keywordTransform,
   }
+})();
 
-}));

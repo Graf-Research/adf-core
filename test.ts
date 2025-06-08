@@ -140,5 +140,5 @@ api post /verify-otp {
     console.error(parse_error)
   }
 };
-// main(process.argv[2]);
+main(process.argv[2]);
 

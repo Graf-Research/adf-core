@@ -3,7 +3,7 @@
 (function () {
 function id(x) { return x[0]; }
 
-const moo = require('moo');
+const moo = require('./moo');
 const lexer = moo.compile(require('../grammar/lexer.js'));
 var grammar = {
     Lexer: lexer,

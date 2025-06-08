@@ -1,4 +1,3 @@
-import moo from 'moo';
 import nearley from 'nearley';
 import { AST_API } from './types/api';
 import { AST_Flow } from './types/flow';

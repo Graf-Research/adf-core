@@ -1,5 +1,5 @@
 @{%
-const moo = require('moo');
+const moo = require('./moo');
 const lexer = moo.compile(require('../grammar/lexer.js'));
 %}
 
